@@ -147,11 +147,9 @@
 
 // The prelude should be included by all crates using this macro.
 pub mod prelude {
-    pub use bincode;
-    pub use serde;
-
     pub use solana_sdk;
     pub use solana_sdk::instruction::{AccountMeta, Instruction};
+
     pub use solana_sdk::pubkey::Pubkey;
 
     #[cfg(feature = "client")]

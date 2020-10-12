@@ -106,21 +106,21 @@ fn access_control<'a>(req: AccessControlRequest<'a>) -> Result<(), LockupError> 
 
     // Initialize checks.
     {
-        // Vesting account.
+        // Vesting account (uninitialized).
         {
             let vesting = Vesting::unpack(&vesting_acc_info.try_borrow_data()?)?;
 
             if vesting_acc_info.owner != program_id {
                 return Err(LockupErrorCode::NotOwnedByProgram)?;
             }
+            if vesting.initialized {
+                return Err(LockupErrorCode::AlreadyInitialized)?;
+            }
             if !rent.is_exempt(
                 vesting_acc_info.lamports(),
                 vesting_acc_info.try_data_len()?,
             ) {
                 return Err(LockupErrorCode::NotRentExempt)?;
-            }
-            if vesting.initialized {
-                return Err(LockupErrorCode::AlreadyInitialized)?;
             }
         }
         // Vesting schedule.

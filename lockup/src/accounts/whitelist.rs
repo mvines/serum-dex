@@ -1,9 +1,9 @@
 use crate::error::{LockupError, LockupErrorCode};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use serum_common::pack::*;
+use solana_client_gen::prelude::*;
 use solana_client_gen::solana_sdk::account_info::AccountInfo;
-use solana_client_gen::solana_sdk::pubkey::Pubkey;
 
 /// Whitelist maintaining the list of program-derived-addresses the Locked
 /// SRM program is allowed to delegate funds to. This is used, for example,
@@ -121,7 +121,7 @@ impl<'a> Whitelist<'a> {
 /// assumed to be an additional pubkey and a nonce.
 ///
 /// We store this rather than the derived address for inspectibility.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize, BorshSchema)]
 pub struct WhitelistEntry {
     program_id: Pubkey,
     instance: Pubkey,

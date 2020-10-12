@@ -60,10 +60,13 @@ mod handlers {
         info!("handler: stake");
         let acc_infos = &mut accounts.iter();
 
+        // Registry relay.
         let token_acc_info = next_account_info(acc_infos)?;
         let vault_acc_info = next_account_info(acc_infos)?;
         let vault_authority_acc_info = next_account_info(acc_infos)?;
         let token_program_acc_info = next_account_info(acc_infos)?;
+
+        // Program specific.
         let wl_acc_info = next_account_info(acc_infos)?;
 
         let wl = accounts::Instance::unpack(&wl_acc_info.try_borrow_data()?)?;

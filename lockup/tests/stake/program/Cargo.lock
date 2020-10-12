@@ -39,6 +39,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "borsh"
+version = "0.7.2"
+source = "git+https://github.com/project-serum/borsh?branch=serum#70e2086cb3bc91462e843d7710788951f0434194"
+dependencies = [
+ "borsh-derive 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)",
+ "solana-sdk 1.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "borsh-derive"
+version = "0.7.2"
+source = "git+https://github.com/project-serum/borsh?branch=serum#70e2086cb3bc91462e843d7710788951f0434194"
+dependencies = [
+ "borsh-derive-internal 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)",
+ "borsh-schema-derive-internal 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)",
+ "syn 1.0.42 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "borsh-derive-internal"
+version = "0.7.2"
+source = "git+https://github.com/project-serum/borsh?branch=serum#70e2086cb3bc91462e843d7710788951f0434194"
+dependencies = [
+ "proc-macro2 1.0.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.42 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "borsh-schema-derive-internal"
+version = "0.7.2"
+source = "git+https://github.com/project-serum/borsh?branch=serum#70e2086cb3bc91462e843d7710788951f0434194"
+dependencies = [
+ "proc-macro2 1.0.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.42 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bs58"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,7 +342,7 @@ name = "serum-common"
 version = "0.1.0"
 dependencies = [
  "arrayref 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "bincode 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "borsh 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)",
  "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
  "solana-sdk 1.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token 2.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -313,8 +352,8 @@ dependencies = [
 name = "serum-lockup-test-stake"
 version = "0.1.0"
 dependencies = [
+ "borsh 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)",
  "bytemuck 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
  "serum-common 0.1.0",
  "solana-client-gen 0.1.0",
  "solana-sdk 1.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -353,7 +392,6 @@ name = "solana-client-gen"
 version = "0.1.0"
 dependencies = [
  "bincode 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
  "serum-common 0.1.0",
  "solana-sdk 1.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 1.0.20 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -499,6 +537,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bincode 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f30d3a39baa26f9651f17b375061f3233dde33424a8b72b0dbe93a68a0bc896d"
 "checksum block-buffer 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 "checksum block-padding 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
+"checksum borsh 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)" = "<none>"
+"checksum borsh-derive 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)" = "<none>"
+"checksum borsh-derive-internal 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)" = "<none>"
+"checksum borsh-schema-derive-internal 0.7.2 (git+https://github.com/project-serum/borsh?branch=serum)" = "<none>"
 "checksum bs58 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
 "checksum bv 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8834bb1d8ee5dc048ee3124f2c7c1afcc6bc9aed03f11e9dfd8c69470a5db340"
 "checksum byte-tools 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"

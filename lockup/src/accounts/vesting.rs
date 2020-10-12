@@ -1,5 +1,6 @@
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use serum_common::pack::*;
-use solana_client_gen::solana_sdk::pubkey::Pubkey;
+use solana_client_gen::prelude::*;
 
 #[cfg(feature = "client")]
 lazy_static::lazy_static! {
@@ -11,7 +12,7 @@ lazy_static::lazy_static! {
 /// The Vesting account represents a single deposit of a token
 /// available for withdrawal over a period of time determined by
 /// a vesting schedule.
-#[derive(Default, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize, BorshSchema)]
 pub struct Vesting {
     /// True iff the vesting account has been initialized via deposit.
     pub initialized: bool,
@@ -55,7 +56,7 @@ impl Vesting {
     /// The amount for withdrawal is not necessarily the balance vested
     /// since funds can be sent to whitelisted programs. For this reason,
     /// take minimum of the availble balance vested and the available balance
-    /// for sending to whitelisted program.
+    /// for sending to whitelisted programs.
     pub fn available_for_withdrawal(&self, current_slot: u64) -> u64 {
         std::cmp::min(
             self.balance_vested(current_slot),

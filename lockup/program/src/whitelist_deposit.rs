@@ -173,7 +173,7 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), LockupError> {
     // Update vesting account.
     {
         let vault = spl_token::state::Account::unpack(&safe_vault_acc_info.try_borrow_data()?)?;
-        assert!(vault.amount > before_amount);
+        assert!(vault.amount >= before_amount);
         let deposit_amount = vault.amount - before_amount;
         assert!(deposit_amount <= vesting.whitelist_owned);
         vesting.whitelist_owned -= deposit_amount;

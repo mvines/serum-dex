@@ -69,7 +69,7 @@ fn access_control<'a>(req: AccessControlRequest<'a>) -> Result<(), LockupError> 
     // Rent.
     let rent = access_control::rent(rent_acc_info)?;
 
-    // Safe.
+    // Safe (uninitialized).
     {
         let safe = Safe::unpack(&safe_acc_info.try_borrow_data()?)?;
         if safe_acc_info.owner != program_id {
@@ -83,7 +83,7 @@ fn access_control<'a>(req: AccessControlRequest<'a>) -> Result<(), LockupError> 
         }
     }
 
-    // Whitelist.
+    // Whitelist (not yet set on Safe).
     {
         if whitelist_acc_info.owner != program_id {
             return Err(LockupErrorCode::InvalidAccountOwner)?;
@@ -96,7 +96,7 @@ fn access_control<'a>(req: AccessControlRequest<'a>) -> Result<(), LockupError> 
         }
     }
 
-    // Vault.
+    // Vault (initialized but not yet on Safe).
     {
         let vault = access_control::token(vault_acc_info)?;
         let vault_authority = Pubkey::create_program_address(
@@ -113,7 +113,7 @@ fn access_control<'a>(req: AccessControlRequest<'a>) -> Result<(), LockupError> 
         }
     }
 
-    // Mint.
+    // Mint (initialized but not yet on Safe).
     let _ = access_control::mint(mint_acc_info)?;
 
     info!("access-control: success");

@@ -1,14 +1,9 @@
 use rand::rngs::OsRng;
 use serum_common_tests::Genesis;
-use serum_registry::accounts::Registrar;
-use serum_registry::accounts::{Entity, Member, StakeKind};
-use serum_registry::client::Client;
-use solana_client_gen::solana_sdk::instruction::AccountMeta;
+use serum_registry::accounts::StakeKind;
+use serum_registry_client::*;
 use solana_client_gen::solana_sdk::pubkey::Pubkey;
 use solana_client_gen::solana_sdk::signature::{Keypair, Signer};
-use solana_client_gen::solana_sdk::sysvar;
-
-mod common;
 
 // NOTE: Deterministic derived addresses are used as a UX convenience so
 //       make sure tests are run against a new instance of the program.
@@ -22,8 +17,8 @@ fn lifecycle() {
 
     let Genesis {
         client,
-        srm_mint: _,
-        msrm_mint: _,
+        srm_mint,
+        msrm_mint,
         mint_authority: _,
         god: _,
         god_msrm: _,
@@ -34,16 +29,23 @@ fn lifecycle() {
 
     // Initialize the registrar.
     let withdrawal_timelock = 1234;
+    let deactivation_timelock_premium = 1000;
+    let reward_activation_threshold = 10_000_000;
     let registrar_authority = Keypair::generate(&mut OsRng);
-    let accounts = [AccountMeta::new_readonly(sysvar::rent::ID, false)];
-    let (_tx_sig, registrar) = client
-        .create_account_and_initialize(&accounts, registrar_authority.pubkey(), withdrawal_timelock)
+    let InitializeResponse { registrar, .. } = client
+        .initialize(InitializeRequest {
+            registrar_authority: registrar_authority.pubkey(),
+            withdrawal_timelock,
+            deactivation_timelock_premium,
+            mint: srm_mint.pubkey(),
+            mega_mint: msrm_mint.pubkey(),
+            reward_activation_threshold,
+        })
         .unwrap();
 
     // Verify initialization.
     {
-        let registrar: Registrar =
-            serum_common::client::rpc::account_unpacked(client.rpc(), &registrar.pubkey());
+        let registrar = client.registrar(&registrar).unwrap();
         assert_eq!(registrar.initialized, true);
         assert_eq!(registrar.authority, registrar_authority.pubkey());
         assert_eq!(registrar.capabilities_fees_bps, [0; 32]);
@@ -52,20 +54,20 @@ fn lifecycle() {
     // Register capabilities.
     {
         let capability_id = 1;
-        let capability_fee = 1234;
-        let accounts = [
-            AccountMeta::new_readonly(registrar_authority.pubkey(), true),
-            AccountMeta::new(registrar.pubkey(), false),
-        ];
-        let signers = [&registrar_authority, client.payer()];
-        client
-            .register_capability_with_signers(&signers, &accounts, capability_id, capability_fee)
+        let capability_fee_bps = 1234;
+
+        let _ = client
+            .register_capability(RegisterCapabilityRequest {
+                registrar,
+                registrar_authority: &registrar_authority,
+                capability_id,
+                capability_fee_bps,
+            })
             .unwrap();
 
-        let registrar: Registrar =
-            serum_common::client::rpc::account_unpacked(client.rpc(), &registrar.pubkey());
+        let registrar = client.registrar(&registrar).unwrap();
         let mut expected = [0; 32];
-        expected[capability_id as usize] = capability_fee;
+        expected[capability_id as usize] = capability_fee_bps;
         assert_eq!(registrar.capabilities_fees_bps, expected);
     }
 
@@ -76,43 +78,38 @@ fn lifecycle() {
         let capabilities = 1;
         let stake_kind = StakeKind::Delegated;
 
-        let (_tx_sig, entity_addr) = client
-            .create_entity_derived(&node_leader, capabilities, stake_kind)
+        let CreateEntityResponse { tx: _, entity } = client
+            .create_entity(CreateEntityRequest {
+                node_leader: &node_leader,
+                capabilities,
+                stake_kind,
+                registrar,
+            })
             .unwrap();
-
-        let entity: Entity =
-            serum_common::client::rpc::account_unpacked(client.rpc(), &entity_addr);
-        assert_eq!(entity.leader, node_leader_pubkey);
-        assert_eq!(entity.initialized, true);
-        assert_eq!(entity.amount, 0);
-        assert_eq!(entity.mega_amount, 0);
-        assert_eq!(entity.capabilities, capabilities);
-        assert_eq!(entity.stake_kind, stake_kind);
-
-        entity_addr
+        let entity_acc = client.entity(&entity).unwrap();
+        assert_eq!(entity_acc.leader, node_leader_pubkey);
+        assert_eq!(entity_acc.initialized, true);
+        assert_eq!(entity_acc.balances.amount, 0);
+        assert_eq!(entity_acc.balances.mega_amount, 0);
+        assert_eq!(entity_acc.capabilities, capabilities);
+        assert_eq!(entity_acc.stake_kind, stake_kind);
+        entity
     };
 
     // Update entity.
     {
-        let accounts = [
-            AccountMeta::new(entity, false),
-            AccountMeta::new_readonly(node_leader.pubkey(), true),
-        ];
-
         let new_capabilities = 1 | 2;
         let new_leader = Pubkey::new_rand();
-
-        client
-            .update_entity_with_signers(
-                &[&node_leader, client.payer()],
-                &accounts,
-                new_leader.clone(),
+        let _ = client
+            .update_entity(UpdateEntityRequest {
+                entity,
+                leader: &node_leader,
+                new_leader,
                 new_capabilities,
-            )
+            })
             .unwrap();
 
-        let entity_account: Entity =
-            serum_common::client::rpc::account_unpacked(client.rpc(), &entity);
+        let entity_account = client.entity(&entity).unwrap();
         assert_eq!(entity_account.capabilities, new_capabilities);
         assert_eq!(entity_account.leader, new_leader);
     }
@@ -120,18 +117,29 @@ fn lifecycle() {
     // Join enitty.
     let beneficiary = Keypair::generate(&mut OsRng);
     {
-        let delegate = Pubkey::new_from_array([0; 32]);
-        let (_tx_sig, member_addr) = client
-            .join_entity_derived(entity, beneficiary.pubkey(), delegate)
+        let JoinEntityResponse { tx: _, member } = client
+            .join_entity(JoinEntityRequest {
+                entity,
+                registrar,
+                beneficiary: beneficiary.pubkey(),
+                delegate: Pubkey::new_from_array([0; 32]),
+                watchtower: Pubkey::new_from_array([0; 32]),
+                watchtower_dest: Pubkey::new_from_array([0; 32]),
+            })
             .unwrap();
 
-        let member: Member =
-            serum_common::client::rpc::account_unpacked(client.rpc(), &member_addr);
+        let member = client.member(&member).unwrap();
         assert_eq!(member.initialized, true);
         assert_eq!(member.entity, entity);
         assert_eq!(member.beneficiary, beneficiary.pubkey());
-        assert_eq!(member.delegate, Pubkey::new_from_array([0; 32]));
-        assert_eq!(member.amount, 0);
-        assert_eq!(member.mega_amount, 0);
+        assert_eq!(
+            member.books.delegate().owner,
+            Pubkey::new_from_array([0; 32])
+        );
+        assert_eq!(member.books.main().balances.amount, 0);
+        assert_eq!(member.books.main().balances.mega_amount, 0);
     }
+
+    // Stake intent.
+    {}
 }

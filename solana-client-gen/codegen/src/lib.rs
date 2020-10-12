@@ -181,9 +181,9 @@ pub fn solana_client_gen(
                 &self.program_id
             }
 
-                        pub fn options(&self) -> &RequestOptions {
-                                &self.opts
-                        }
+            pub fn options(&self) -> &RequestOptions {
+                &self.opts
+            }
 
             #client_methods
         }

@@ -1,8 +1,7 @@
-//! serum-lockup defines the interface for the Serum Lockup program.
-
 #![cfg_attr(feature = "strict", deny(warnings))]
+#![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use serum_common::pack::*;
 use solana_client_gen::prelude::*;
 
@@ -12,7 +11,7 @@ pub mod error;
 #[cfg_attr(feature = "client", solana_client_gen)]
 pub mod instruction {
     use super::*;
-    #[derive(Serialize, Deserialize)]
+    #[derive(BorshSerialize, BorshDeserialize, BorshSchema)]
     pub enum LockupInstruction {
         /// Initializes a safe instance for use.
         ///
@@ -24,8 +23,9 @@ pub mod instruction {
         ///
         /// 0. `[writable]` Safe to initialize.
         /// 1. `[writable]` Whitelist to initialize.
-        /// 2. `[]`         Mint of the SPL token controlled by the safe.
-        /// 3. `[]`         Rent sysvar
+        /// 2. `[]`         Vault.
+        /// 4. `[]`         Mint of the SPL token controlled by the safe.
+        /// 5. `[]`         Rent sysvar.
         Initialize {
             /// The priviledged account.
             authority: Pubkey,
@@ -177,7 +177,7 @@ pub mod instruction {
         ///
         /// Accounts:
         ///
-        /// 0. `[signer]    Safe's authority.
+        /// 0. `[signer]`   Safe's authority.
         /// 1  `[writable]` Safe account.
         /// 2. `[writable]` Safe's token vault from which we are transferring
         ///                 all tokens out of.
