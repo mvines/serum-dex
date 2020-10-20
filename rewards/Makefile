@@ -1,9 +1,6 @@
 include ../Makefile
 
 LIB_NAME=serum_rewards_program
-#TEST_PROGRAM_ID="514xCmpQprVrNH2xJW46D5wecDNZemU458dTUuDUiEVM"
-#TEST_REGISTRY_PROGRAM_ID="3bB3Utm2hW9G2jbz1o2Qydt157Q8nqa6Dw47woFf1TNm"
-#TEST_DEX_PROGRAM_ID="DsWkk5EXVf3FV4sqdbdvkcUT7N1SooR5RocL1DbbJD4B"
 
 .PHONY: test deploy-dex deploy-registry test-program
 
