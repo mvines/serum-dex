@@ -11,7 +11,7 @@ LIB_NAME=serum_rewards_program
 test: deploy-dex deploy-registry deploy-super test-program
 	@ # no-op
 
-deploy-dex: build-dex
+deploy-dex:
 	cd ../ && ./do.sh build dex && cd rewards
 	$(eval TEST_DEX_PROGRAM_ID=$(shell solana deploy ../dex/target/bpfel-unknown-unknown/release/serum_dex.so --use-deprecated-loader | jq .programId -r))
 
