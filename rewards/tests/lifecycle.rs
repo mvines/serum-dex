@@ -2,7 +2,7 @@ extern crate crank as serum_crank;
 
 use serum_common::client::rpc;
 use serum_common_tests::Genesis;
-use serum_dex::instruction::{MarketInstruction, NewOrderInstructionV1};
+use serum_dex::instruction::NewOrderInstructionV1;
 use serum_dex::matching::{OrderType, Side};
 use serum_registry::accounts::*;
 use serum_registry_client::{
@@ -13,7 +13,7 @@ use serum_registry_client::{
 use serum_rewards_client::*;
 use solana_client_gen::prelude::*;
 use solana_client_gen::solana_sdk::signature::{Keypair, Signer};
-use spl_token::state::{Account as TokenAccount, Mint};
+use spl_token::state::Account as TokenAccount;
 use std::num::NonZeroU64;
 
 #[test]
@@ -95,13 +95,14 @@ fn lifecycle() {
         .unwrap();
 
     // Fund the Rewards program (so that it can payout crank fees).
+    let rewards_vault_amount = 100_000_000;
     {
         let instance = client.instance(rewards_init_resp.instance).unwrap();
         rpc::transfer(
             client.rpc(),
             &god.pubkey(),
             &instance.vault,
-            100_000_000,
+            rewards_vault_amount,
             &god_owner,
             client.payer(),
         )
@@ -210,10 +211,51 @@ fn lifecycle() {
     };
 
     // Check fee was received.
+    let expected_fee = 6170; // 5 events * 1234 fee.
     {
-        let expected_fee = 6170; // 5 events * 1234 fee.
         let token_account: TokenAccount =
             rpc::get_token_account(client.rpc(), &token_account_pubkey).unwrap();
         assert_eq!(token_account.amount, expected_fee);
+    }
+
+    // Set new authority.
+    let new_authority = {
+        let new_authority = Keypair::generate(&mut OsRng);
+        client
+            .set_authority(SetAuthorityRequest {
+                instance: rewards_init_resp.instance,
+                new_authority: new_authority.pubkey(),
+                authority: client.payer(),
+            })
+            .unwrap();
+        let i = client.instance(rewards_init_resp.instance).unwrap();
+        assert_eq!(i.authority, new_authority.pubkey());
+        new_authority
+    };
+
+    // Migrate funds out.
+    {
+        let receiver = rpc::create_token_account(
+            client.rpc(),
+            &srm_mint.pubkey(),
+            &client.payer().pubkey(),
+            client.payer(),
+        )
+        .unwrap();
+        client
+            .migrate(MigrateRequest {
+                authority: &new_authority,
+                instance: rewards_init_resp.instance,
+                receiver: receiver.pubkey(),
+            })
+            .unwrap();
+        // Check receiver.
+        let receiver_account =
+            rpc::get_token_account::<TokenAccount>(client.rpc(), &receiver.pubkey()).unwrap();
+        let expected = rewards_vault_amount - expected_fee;
+        assert_eq!(receiver_account.amount, expected);
+        // Check vault.
+        let vault = client.vault(rewards_init_resp.instance).unwrap();
+        assert_eq!(vault.amount, 0);
     }
 }

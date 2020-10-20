@@ -47,8 +47,8 @@ pub mod instruction {
         CrankRelay { instruction_data: Vec<u8> },
         /// Accounts:
         ///
-        /// 0. `[writable]` Instance.
-        /// 1. `[signed]`   Instance authority.
+        /// 0. `[signed]`   Instance authority.
+        /// 1. `[writable]` Instance.
         SetAuthority { authority: Pubkey },
         /// Moves funds to the new address.
         ///
@@ -56,7 +56,7 @@ pub mod instruction {
         ///
         /// 0. `[signer]`   Instance authority.
         /// 1. `[writable]` Instance account.
-        /// 2. `[writable]` Instance token vault.
+        /// 2. `[writable]` Instance vault.
         /// 3. `[]`         Instance vault authority.
         /// 4. `[writable]` Migrated token account.
         /// 5. `[]`         SPL token program.

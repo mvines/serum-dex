@@ -86,8 +86,8 @@ impl Client {
         } = req;
         let i = self.instance(instance)?;
         let accounts = [
-            AccountMeta::new(instance, false),
             AccountMeta::new_readonly(i.authority, false),
+            AccountMeta::new(instance, false),
         ];
         let signers = [authority, self.payer()];
         let tx = self
