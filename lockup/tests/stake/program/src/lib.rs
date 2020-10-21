@@ -61,6 +61,7 @@ mod handlers {
         let acc_infos = &mut accounts.iter();
 
         // Registry relay.
+        let delegate_owner_acc_info = next_account_info(acc_infos)?;
         let token_acc_info = next_account_info(acc_infos)?;
         let vault_acc_info = next_account_info(acc_infos)?;
         let vault_authority_acc_info = next_account_info(acc_infos)?;
@@ -68,6 +69,8 @@ mod handlers {
 
         // Program specific.
         let wl_acc_info = next_account_info(acc_infos)?;
+
+        assert!(delegate_owner_acc_info.is_signer);
 
         let wl = accounts::Instance::unpack(&wl_acc_info.try_borrow_data()?)?;
         let nonce = wl.nonce;
@@ -98,11 +101,14 @@ mod handlers {
         info!("handler: unstake");
         let acc_infos = &mut accounts.iter();
 
+        let delegate_owner_acc_info = next_account_info(acc_infos)?;
         let token_acc_info = next_account_info(acc_infos)?;
         let vault_acc_info = next_account_info(acc_infos)?;
         let vault_authority_acc_info = next_account_info(acc_infos)?;
         let token_program_acc_info = next_account_info(acc_infos)?;
         let wl_acc_info = next_account_info(acc_infos)?;
+
+        assert!(delegate_owner_acc_info.is_signer);
 
         let wl = accounts::Instance::unpack(&wl_acc_info.try_borrow_data()?)?;
         let nonce = wl.nonce;

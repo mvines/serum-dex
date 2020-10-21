@@ -58,6 +58,21 @@ impl Entity {
         self.transition_activation_if_needed(registrar, clock);
     }
 
+    pub fn sub_stake_intent(
+        &mut self,
+        amount: u64,
+        mega: bool,
+        registrar: &Registrar,
+        clock: &Clock,
+    ) {
+        if mega {
+            self.balances.mega_stake_intent -= amount;
+        } else {
+            self.balances.stake_intent -= amount;
+        }
+        self.transition_activation_if_needed(registrar, clock);
+    }
+
     pub fn add_stake(&mut self, amount: u64, is_mega: bool, registrar: &Registrar, clock: &Clock) {
         if is_mega {
             self.balances.mega_stake_intent += amount;

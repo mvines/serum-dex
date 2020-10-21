@@ -1,6 +1,6 @@
 use serum_common::pack::Pack;
 use serum_registry::access_control;
-use serum_registry::accounts::{Entity, Member, Registrar};
+use serum_registry::accounts::{vault, Entity, Member, Registrar};
 use serum_registry::error::{RegistryError, RegistryErrorCode};
 use solana_sdk::account_info::{next_account_info, AccountInfo};
 use solana_sdk::info;
@@ -20,10 +20,11 @@ pub fn handler<'a>(
 
     // Lockup whitelist relay interface.
 
+    let delegate_owner_acc_info = next_account_info(acc_infos)?;
     let depositor_tok_acc_info = next_account_info(acc_infos)?;
     let vault_acc_info = next_account_info(acc_infos)?;
-    // Owner or delegate.
-    let depositor_tok_authority_acc_info = next_account_info(acc_infos)?;
+    // Owner or token delegate.
+    let tok_authority_acc_info = next_account_info(acc_infos)?;
     let token_program_acc_info = next_account_info(acc_infos)?;
 
     // Program specfic.
@@ -35,7 +36,8 @@ pub fn handler<'a>(
     let clock_acc_info = next_account_info(acc_infos)?;
 
     access_control(AccessControlRequest {
-        depositor_tok_authority_acc_info,
+        delegate_owner_acc_info,
+        tok_authority_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
         member_authority_acc_info,
@@ -62,8 +64,9 @@ pub fn handler<'a>(
                         amount,
                         registrar,
                         clock,
+                        registrar_acc_info,
                         vault_acc_info,
-                        depositor_tok_authority_acc_info,
+                        tok_authority_acc_info,
                         depositor_tok_acc_info,
                         member_acc_info,
                         member_authority_acc_info,
@@ -82,10 +85,11 @@ pub fn handler<'a>(
 }
 
 fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
-    info!("access-control: stake");
+    info!("access-control: stake-intent");
 
     let AccessControlRequest {
-        depositor_tok_authority_acc_info,
+        delegate_owner_acc_info,
+        tok_authority_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
         member_authority_acc_info,
@@ -99,8 +103,19 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     } = req;
 
     // Beneficiary (or delegate) authorization.
-    if !depositor_tok_authority_acc_info.is_signer {
-        return Err(RegistryErrorCode::Unauthorized)?;
+    //
+    // Delegate implies the signer is the program-derived-address of the
+    // lockup program, the vault of which we have delegate access to.
+    if is_delegate {
+        if !delegate_owner_acc_info.is_signer {
+            return Err(RegistryErrorCode::Unauthorized)?;
+        }
+    }
+    // No delegate implies it's a regular transfer and so the owner must sign.
+    else {
+        if !tok_authority_acc_info.is_signer {
+            return Err(RegistryErrorCode::Unauthorized)?;
+        }
     }
 
     // Account validation.
@@ -113,7 +128,24 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
         is_delegate,
         program_id,
     )?;
-    let _ = access_control::vault(vault_acc_info, &registrar, is_mega)?;
+    let vault = access_control::vault(
+        vault_acc_info,
+        registrar_acc_info,
+        &registrar,
+        program_id,
+        is_mega,
+    )?;
+    if is_delegate {
+        // Match the signer to the Member account's delegate.
+        if *delegate_owner_acc_info.key != member.books.delegate().owner {
+            return Err(RegistryErrorCode::InvalidMemberDelegateOwner)?;
+        }
+        // tok_authority is this vault's owner because this is a delegate
+        // transfer.
+        if *tok_authority_acc_info.key != vault.owner {
+            return Err(RegistryErrorCode::InvalidTokenAuthority)?;
+        }
+    }
 
     // StakeIntent specific: None.
 
@@ -123,7 +155,7 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
 }
 
 fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
-    info!("state-transition: stake");
+    info!("state-transition: stake-intent");
 
     let StateTransitionRequest {
         entity,
@@ -131,7 +163,8 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
         amount,
         registrar,
         clock,
-        depositor_tok_authority_acc_info,
+        registrar_acc_info,
+        tok_authority_acc_info,
         depositor_tok_acc_info,
         vault_acc_info,
         member_acc_info,
@@ -149,20 +182,28 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
             &spl_token::ID,
             depositor_tok_acc_info.key,
             vault_acc_info.key,
-            depositor_tok_authority_acc_info.key,
+            tok_authority_acc_info.key,
             &[],
             amount,
         )?;
-        solana_sdk::program::invoke_signed(
-            &withdraw_instruction,
-            &[
-                depositor_tok_acc_info.clone(),
-                vault_acc_info.clone(),
-                depositor_tok_authority_acc_info.clone(),
-                token_program_acc_info.clone(),
-            ],
-            &[],
-        )?;
+        let acc_infos = &[
+            depositor_tok_acc_info.clone(),
+            vault_acc_info.clone(),
+            tok_authority_acc_info.clone(),
+            token_program_acc_info.clone(),
+        ];
+        if is_delegate {
+            solana_sdk::program::invoke_signed(
+                &withdraw_instruction,
+                acc_infos,
+                &[&vault::signer_seeds(
+                    registrar_acc_info.key,
+                    &registrar.nonce,
+                )],
+            )?;
+        } else {
+            solana_sdk::program::invoke_signed(&withdraw_instruction, acc_infos, &[])?;
+        }
     }
 
     member.add_stake_intent(amount, is_mega, is_delegate);
@@ -174,9 +215,10 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
 }
 
 struct AccessControlRequest<'a> {
+    delegate_owner_acc_info: &'a AccountInfo<'a>,
     registrar_acc_info: &'a AccountInfo<'a>,
     program_id: &'a Pubkey,
-    depositor_tok_authority_acc_info: &'a AccountInfo<'a>,
+    tok_authority_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
     member_authority_acc_info: &'a AccountInfo<'a>,
@@ -195,8 +237,9 @@ struct StateTransitionRequest<'a, 'b> {
     registrar: Registrar,
     clock: Clock,
     amount: u64,
+    registrar_acc_info: &'a AccountInfo<'a>,
     vault_acc_info: &'a AccountInfo<'a>,
-    depositor_tok_authority_acc_info: &'a AccountInfo<'a>,
+    tok_authority_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
     member_authority_acc_info: &'a AccountInfo<'a>,

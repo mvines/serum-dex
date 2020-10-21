@@ -6,6 +6,7 @@ use solana_client_gen::solana_sdk::instruction::AccountMeta;
 use solana_client_gen::solana_sdk::pubkey::Pubkey;
 use solana_client_gen::solana_sdk::signature::Signature;
 use solana_client_gen::solana_sdk::signature::{Keypair, Signer};
+use spl_token::state::Account as TokenAccount;
 use std::convert::Into;
 use thiserror::Error;
 
@@ -141,7 +142,75 @@ impl Client {
         &self,
         req: StakeIntentRequest,
     ) -> Result<StakeIntentResponse, ClientError> {
-        Ok(StakeIntentResponse {})
+        let StakeIntentRequest {
+            member,
+            beneficiary,
+            entity,
+            depositor,
+            depositor_authority,
+            mega,
+            registrar,
+            amount,
+        } = req;
+        let vault = self.registrar(&registrar)?.vault;
+        let delegate = false;
+        let accounts = [
+            AccountMeta::new_readonly(solana_sdk::sysvar::rent::ID, false), // Dummy.
+            AccountMeta::new(depositor, false),
+            AccountMeta::new(vault, false),
+            AccountMeta::new(depositor_authority.pubkey(), true),
+            AccountMeta::new_readonly(spl_token::ID, false),
+            AccountMeta::new(member, false),
+            AccountMeta::new_readonly(beneficiary.pubkey(), true),
+            AccountMeta::new(entity, false),
+            AccountMeta::new_readonly(registrar, false),
+            AccountMeta::new_readonly(solana_sdk::sysvar::clock::ID, false),
+        ];
+        let signers = [self.payer(), beneficiary, depositor_authority];
+
+        let tx = self
+            .inner
+            .stake_intent_with_signers(&signers, &accounts, amount, mega, delegate)?;
+
+        Ok(StakeIntentResponse { tx })
+    }
+
+    pub fn stake_intent_withdrawal(
+        &self,
+        req: StakeIntentWithdrawalRequest,
+    ) -> Result<StakeIntentWithdrawalResponse, ClientError> {
+        let StakeIntentWithdrawalRequest {
+            member,
+            beneficiary,
+            entity,
+            depositor,
+            mega,
+            registrar,
+            amount,
+        } = req;
+        let r = self.registrar(&registrar)?;
+        let vault = r.vault;
+        let vault_acc = rpc::get_token_account::<TokenAccount>(self.inner.rpc(), &r.vault)?;
+        let delegate = false;
+        let accounts = [
+            AccountMeta::new_readonly(solana_sdk::sysvar::rent::ID, false), // Dummy.
+            AccountMeta::new(depositor, false),
+            AccountMeta::new(vault, false),
+            AccountMeta::new(vault_acc.owner, false),
+            AccountMeta::new_readonly(spl_token::ID, false),
+            AccountMeta::new(member, false),
+            AccountMeta::new_readonly(beneficiary.pubkey(), true),
+            AccountMeta::new(entity, false),
+            AccountMeta::new_readonly(registrar, false),
+            AccountMeta::new_readonly(solana_sdk::sysvar::clock::ID, false),
+        ];
+        let signers = [self.payer(), beneficiary];
+
+        let tx = self
+            .inner
+            .stake_intent_withdrawal_with_signers(&signers, &accounts, amount, mega, delegate)?;
+
+        Ok(StakeIntentWithdrawalResponse { tx })
     }
 
     pub fn start_stake_withdrawal(
@@ -176,6 +245,14 @@ impl Client {
     }
     pub fn member_seed() -> &'static str {
         inner::member_seed()
+    }
+    pub fn stake_intent_vault(&self, registrar: &Pubkey) -> Result<TokenAccount, ClientError> {
+        let r = self.registrar(registrar)?;
+        rpc::get_token_account::<TokenAccount>(self.inner.rpc(), &r.vault).map_err(Into::into)
+    }
+    pub fn stake_intent_mega_vault(&self, registrar: &Pubkey) -> Result<TokenAccount, ClientError> {
+        let r = self.registrar(registrar)?;
+        rpc::get_token_account::<TokenAccount>(self.inner.rpc(), &r.mega_vault).map_err(Into::into)
     }
 }
 
@@ -268,9 +345,34 @@ pub struct StakeRequest {}
 
 pub struct StakeResponse {}
 
-pub struct StakeIntentRequest {}
+pub struct StakeIntentRequest<'a> {
+    pub member: Pubkey,
+    pub beneficiary: &'a Keypair,
+    pub entity: Pubkey,
+    pub depositor: Pubkey,
+    pub depositor_authority: &'a Keypair,
+    pub mega: bool,
+    pub registrar: Pubkey,
+    pub amount: u64,
+}
 
-pub struct StakeIntentResponse {}
+pub struct StakeIntentResponse {
+    pub tx: Signature,
+}
+
+pub struct StakeIntentWithdrawalRequest<'a> {
+    pub member: Pubkey,
+    pub beneficiary: &'a Keypair,
+    pub entity: Pubkey,
+    pub depositor: Pubkey,
+    pub mega: bool,
+    pub registrar: Pubkey,
+    pub amount: u64,
+}
+
+pub struct StakeIntentWithdrawalResponse {
+    pub tx: Signature,
+}
 
 pub struct DelegateStakeRequest {}
 

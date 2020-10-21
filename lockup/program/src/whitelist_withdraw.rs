@@ -169,6 +169,7 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), LockupError> {
     {
         info!("invoking relay");
         let mut meta_accounts = vec![
+            AccountMeta::new_readonly(*safe_vault_auth_acc_info.key, true),
             AccountMeta::new(*safe_vault_acc_info.key, false),
             AccountMeta::new(*wl_prog_vault_acc_info.key, false),
             AccountMeta::new_readonly(*wl_prog_vault_authority_acc_info.key, false),
@@ -187,7 +188,7 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), LockupError> {
             data: instruction_data,
         };
 
-        solana_sdk::program::invoke(&relay_instruction, &accounts[..])?;
+        solana_sdk::program::invoke_signed(&relay_instruction, &accounts[..], &[&signer_seeds])?;
     }
 
     // Revoke delegate access.

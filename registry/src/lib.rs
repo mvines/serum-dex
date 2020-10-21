@@ -109,18 +109,20 @@ pub mod instruction {
         ///
         /// Lockup whitelist relay account interface:
         ///
-        /// 0. `[writable]` The depositing token account (sender).
-        /// 1. `[writable]` Vault (receiver).
-        /// 2. `[signer]`   Owner/delegate of the depositing token account.
-        /// 3. `[]`         SPL token program.
+        /// 0. `[]`         Member account's delegate owner. If not a delegated
+        ///                 instruction, then a dummy account.
+        /// 1. `[writable]` The depositing token account (sender).
+        /// 2. `[writable]` Vault (receiver).
+        /// 3. `[signer]`   Owner/delegate of the depositing token account.
+        /// 4. `[]`         SPL token program.
         ///
         /// Program specific.
         ///
-        /// 4. `[writable]` Member account responsibile for the stake.
-        /// 5. `[signer]`   Beneficiary of the Member account being staked.
-        /// 6. `[writable]` Entity account to stake to.
-        /// 7. `[]`         Registrar.
-        /// 8. `[]`         Clock.
+        /// 5. `[writable]` Member account responsibile for the stake.
+        /// 6. `[signer]`   Beneficiary of the Member account being staked.
+        /// 7. `[writable]` Entity account to stake to.
+        /// 8. `[]`         Registrar.
+        /// 9. `[]`         Clock.
         StakeIntent {
             amount: u64,
             mega: bool,
@@ -130,6 +132,14 @@ pub mod instruction {
         ///
         /// Same as StakeIntent.
         StakeIntentWithdrawal {
+            amount: u64,
+            mega: bool,
+            delegate: bool,
+        },
+        /// Transfers the stake intent funds into the staking pool.
+        ///
+        ///
+        TransferStakeIntent {
             amount: u64,
             mega: bool,
             delegate: bool,

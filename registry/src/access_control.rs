@@ -89,7 +89,9 @@ pub fn member(
 
 pub fn vault(
     acc_info: &AccountInfo,
+    registrar_acc_info: &AccountInfo,
     registrar: &Registrar,
+    program_id: &Pubkey,
     is_mega: bool,
 ) -> Result<TokenAccount, RegistryError> {
     if is_mega && registrar.mega_vault != *acc_info.key {
@@ -98,7 +100,18 @@ pub fn vault(
         return Err(RegistryErrorCode::RegistrarVaultMismatch)?;
     }
 
-    TokenAccount::unpack(&acc_info.try_borrow_data()?).map_err(Into::into)
+    let vault = TokenAccount::unpack(&acc_info.try_borrow_data()?)?;
+
+    let expected_vault_auth = Pubkey::create_program_address(
+        &vault::signer_seeds(registrar_acc_info.key, &registrar.nonce),
+        program_id,
+    )
+    .map_err(|_| RegistryErrorCode::InvalidVaultAuthority)?;
+    if expected_vault_auth != vault.owner {
+        return Err(RegistryErrorCode::InvalidVaultAuthority)?;
+    }
+
+    Ok(vault)
 }
 
 pub fn token(acc_info: &AccountInfo) -> Result<TokenAccount, RegistryError> {

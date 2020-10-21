@@ -35,6 +35,9 @@ pub enum RegistryErrorCode {
     InvalidVaultNonce = 20,
     DelegateInUse = 21,
     InvalidCapabilityId = 22,
+    InsufficientStakeIntentBalance = 23,
+    InvalidMemberDelegateOwner = 24,
+    InvalidTokenAuthority = 25,
     Unknown = 1000,
 }
 

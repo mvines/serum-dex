@@ -1,9 +1,12 @@
 use rand::rngs::OsRng;
+use serum_common::client::rpc;
 use serum_common_tests::Genesis;
 use serum_registry::accounts::StakeKind;
 use serum_registry_client::*;
+use solana_client_gen::prelude::*;
 use solana_client_gen::solana_sdk::pubkey::Pubkey;
 use solana_client_gen::solana_sdk::signature::{Keypair, Signer};
+use spl_token::state::Account as TokenAccount;
 
 // NOTE: Deterministic derived addresses are used as a UX convenience so
 //       make sure tests are run against a new instance of the program.
@@ -20,11 +23,11 @@ fn lifecycle() {
         srm_mint,
         msrm_mint,
         mint_authority: _,
-        god: _,
+        god,
         god_msrm: _,
-        god_balance_before: _,
+        god_balance_before,
         god_msrm_balance_before: _,
-        god_owner: _,
+        god_owner,
     } = genesis;
 
     // Initialize the registrar.
@@ -42,6 +45,15 @@ fn lifecycle() {
             reward_activation_threshold,
         })
         .unwrap();
+
+    // Initialize the lockup program and whitelist registrar.
+    {
+        let lockup_program_id: Pubkey = std::env::var("TEST_LOCKUP_PROGRAM_ID")
+            .unwrap()
+            .parse()
+            .unwrap();
+        // TODO
+    }
 
     // Verify initialization.
     {
@@ -116,7 +128,7 @@ fn lifecycle() {
 
     // Join enitty.
     let beneficiary = Keypair::generate(&mut OsRng);
-    {
+    let member = {
         let JoinEntityResponse { tx: _, member } = client
             .join_entity(JoinEntityRequest {
                 entity,
@@ -128,18 +140,81 @@ fn lifecycle() {
             })
             .unwrap();
 
-        let member = client.member(&member).unwrap();
-        assert_eq!(member.initialized, true);
-        assert_eq!(member.entity, entity);
-        assert_eq!(member.beneficiary, beneficiary.pubkey());
+        let member_account = client.member(&member).unwrap();
+        assert_eq!(member_account.initialized, true);
+        assert_eq!(member_account.entity, entity);
+        assert_eq!(member_account.beneficiary, beneficiary.pubkey());
         assert_eq!(
-            member.books.delegate().owner,
+            member_account.books.delegate().owner,
             Pubkey::new_from_array([0; 32])
         );
-        assert_eq!(member.books.main().balances.amount, 0);
-        assert_eq!(member.books.main().balances.mega_amount, 0);
-    }
+        assert_eq!(member_account.books.main().balances.amount, 0);
+        assert_eq!(member_account.books.main().balances.mega_amount, 0);
+        member
+    };
 
     // Stake intent.
-    {}
+    let stake_intent_amount = 33;
+    {
+        client
+            .stake_intent(StakeIntentRequest {
+                member,
+                beneficiary: &beneficiary,
+                entity,
+                depositor: god.pubkey(),
+                depositor_authority: &god_owner,
+                mega: false,
+                registrar,
+                amount: stake_intent_amount,
+            })
+            .unwrap();
+        let vault = client.stake_intent_vault(&registrar).unwrap();
+        assert_eq!(stake_intent_amount, vault.amount);
+        let god_acc = rpc::get_token_account::<TokenAccount>(client.rpc(), &god.pubkey()).unwrap();
+        assert_eq!(god_acc.amount, god_balance_before - stake_intent_amount);
+    }
+
+    // Stake intent withdrawal.
+    {
+        client
+            .stake_intent_withdrawal(StakeIntentWithdrawalRequest {
+                member,
+                beneficiary: &beneficiary,
+                entity,
+                depositor: god.pubkey(),
+                mega: false,
+                registrar,
+                amount: stake_intent_amount,
+            })
+            .unwrap();
+        let vault = client.stake_intent_vault(&registrar).unwrap();
+        assert_eq!(0, vault.amount);
+        let god_acc = rpc::get_token_account::<TokenAccount>(client.rpc(), &god.pubkey()).unwrap();
+        assert_eq!(god_acc.amount, god_balance_before);
+    }
+
+    // Stake intent from lockup.
+    {
+        // todo
+    }
+
+    // Stake intent withdrawal from delegate.
+    {
+        // todo
+    }
+
+    // Stake transfer.
+    {
+        // todo
+    }
+
+    // Stake.
+    {
+        // todo
+    }
+
+    // Stake withdrawal.
+    {
+        // todo
+    }
 }

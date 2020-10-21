@@ -20,6 +20,7 @@ mod stake;
 mod stake_intent;
 mod stake_intent_withdrawal;
 mod start_stake_withdrawal;
+mod transfer_stake_intent;
 mod update_entity;
 mod update_member;
 
@@ -80,7 +81,7 @@ fn entry<'a>(
             amount,
             mega,
             delegate,
-        } => stake_intent_withdrawal::handler(program_id, accounts, mega, delegate),
+        } => stake_intent_withdrawal::handler(program_id, accounts, amount, mega, delegate),
         RegistryInstruction::Stake {
             amount,
             mega,
@@ -91,6 +92,11 @@ fn entry<'a>(
             mega,
             delegate,
         } => start_stake_withdrawal::handler(program_id, accounts, amount, mega, delegate),
+        RegistryInstruction::TransferStakeIntent {
+            amount,
+            mega,
+            delegate,
+        } => transfer_stake_intent::handler(program_id, accounts, amount, mega, delegate),
         RegistryInstruction::EndStakeWithdrawal => Err(RegistryError::ErrorCode(
             RegistryErrorCode::NotReadySeeNextMajorVersion,
         )),

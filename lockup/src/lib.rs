@@ -121,13 +121,14 @@ pub mod instruction {
         ///
         /// All accounts below will be relayed to the whitelisted program.
         ///
-        /// 6. `[writable]` Safe vault.
-        /// 7. `[writable]` Vault which will receive funds.
-        /// 8. `[]`         Whitelisted vault authority.
-        /// 9. `[]`         Token program id.
-        /// .. `[writable]` Variable number of program specific accounts to
-        ///                 relay to the program, along with the above
-        ///                 whitelisted accounts and Safe vault.
+        /// 6.  `[]`         Safe vault authority.
+        /// 7.  `[writable]` Safe vault.
+        /// 8.  `[writable]` Vault which will receive funds.
+        /// 9.  `[]`         Whitelisted vault authority.
+        /// 10. `[]`         Token program id.
+        /// ..  `[writable]` Variable number of program specific accounts to
+        ///                  relay to the program, along with the above
+        ///                  whitelisted accounts and Safe vault.
         WhitelistWithdraw {
             /// Amount of funds the whitelisted program is approved to
             /// transfer to itself. Must be less than or equal to the vesting

@@ -44,6 +44,21 @@ impl Member {
             }
         }
     }
+    pub fn sub_stake_intent(&mut self, amount: u64, mega: bool, delegate: bool) {
+        if delegate {
+            if mega {
+                self.books.delegate.balances.mega_stake_intent -= amount;
+            } else {
+                self.books.delegate.balances.stake_intent -= amount;
+            }
+        } else {
+            if mega {
+                self.books.main.balances.mega_stake_intent -= amount;
+            } else {
+                self.books.main.balances.stake_intent -= amount;
+            }
+        }
+    }
     pub fn add_stake(&mut self, amount: u64, mega: bool, delegate: bool) {
         if delegate {
             if mega {
@@ -90,6 +105,21 @@ impl Member {
             owner: delegate,
             balances: Default::default(),
         };
+    }
+    pub fn stake_intent(&self, mega: bool, delegate: bool) -> u64 {
+        if delegate {
+            if mega {
+                self.books.delegate.balances.mega_stake_intent
+            } else {
+                self.books.delegate.balances.stake_intent
+            }
+        } else {
+            if mega {
+                self.books.main.balances.mega_stake_intent
+            } else {
+                self.books.main.balances.stake_intent
+            }
+        }
     }
 }
 
