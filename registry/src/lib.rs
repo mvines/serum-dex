@@ -128,6 +128,14 @@ pub mod instruction {
         },
         /// Accounts:
         ///
+        /// Same as StakeIntent.
+        StakeIntentWithdrawal {
+            amount: u64,
+            mega: bool,
+            delegate: bool,
+        },
+        /// Accounts:
+        ///
         /// Same as StakeIntent, substituting Accounts[1] for the pool's vault.
         ///
         /// TODO: append pool specific accounts once we know the interface.
