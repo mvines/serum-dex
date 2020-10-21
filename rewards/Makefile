@@ -13,7 +13,7 @@ test: deploy-dex deploy-registry deploy-super test-program
 
 deploy-dex:
 	cd ../ && ./do.sh build dex && cd rewards
-	$(eval TEST_DEX_PROGRAM_ID=$(shell solana deploy ../dex/target/bpfel-unknown-unknown/release/serum_dex.so --use-deprecated-loader | jq .programId -r))
+	$(eval TEST_DEX_PROGRAM_ID=$(shell solana deploy $(SOL_OPTIONS) ../dex/target/bpfel-unknown-unknown/release/serum_dex.so --use-deprecated-loader | jq .programId -r))
 
 deploy-registry:
 	$(eval TMP=$(shell make -s -C ../registry deploy))
