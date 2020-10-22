@@ -4,7 +4,8 @@ use serum_common_tests::Genesis;
 use serum_lockup::accounts::WhitelistEntry;
 use serum_lockup_client::{
     ClaimRequest, Client as LockupClient, CreateVestingRequest,
-    InitializeRequest as LockupInitializeRequest, LockedStakeIntentRequest, WhitelistAddRequest,
+    InitializeRequest as LockupInitializeRequest, LockedStakeIntentRequest,
+    LockedStakeIntentWithdrawalRequest, WhitelistAddRequest,
 };
 use serum_registry::accounts::StakeKind;
 use serum_registry_client::*;
@@ -240,6 +241,7 @@ fn lifecycle() {
     }
 
     // Stake intent from lockup.
+    let l_vault_amount = l_client.vault(&safe).unwrap().amount;
     {
         l_client
             .locked_stake_intent(LockedStakeIntentRequest {
@@ -255,11 +257,32 @@ fn lifecycle() {
                 safe,
             })
             .unwrap();
+        let vault = client.stake_intent_vault(&registrar).unwrap();
+        assert_eq!(stake_intent_amount, vault.amount);
+        let l_vault = l_client.vault(&safe).unwrap();
+        assert_eq!(l_vault_amount - stake_intent_amount, l_vault.amount);
     }
 
     // Stake intent withdrawal back to lockup.
     {
-        // todo
+        l_client
+            .locked_stake_intent_withdrawal(LockedStakeIntentWithdrawalRequest {
+                amount: stake_intent_amount,
+                mega: false,
+                registry_pid: *client.program(),
+                registrar,
+                member,
+                entity,
+                beneficiary: vesting_beneficiary,
+                stake_beneficiary: &beneficiary,
+                vesting,
+                safe,
+            })
+            .unwrap();
+        let vault = client.stake_intent_vault(&registrar).unwrap();
+        assert_eq!(0, vault.amount);
+        let l_vault = l_client.vault(&safe).unwrap();
+        assert_eq!(l_vault_amount, l_vault.amount);
     }
 
     // Stake transfer.

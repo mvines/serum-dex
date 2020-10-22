@@ -158,13 +158,15 @@ impl Client {
             vesting,
             safe,
             whitelist_program,
-            mut relay_accounts,
-            vault,
-            whitelist_vault,
-            whitelist_vault_authority,
+            whitelist_program_vault,
+            whitelist_program_vault_authority,
             relay_data,
+            mut relay_accounts,
+            mut relay_signers,
         } = req;
-        let whitelist = self.safe(&safe)?.whitelist;
+        let s = self.safe(&safe)?;
+        let vault = s.vault;
+        let whitelist = s.whitelist;
         let mut accounts = vec![
             AccountMeta::new_readonly(beneficiary.pubkey(), true),
             AccountMeta::new(vesting, false),
@@ -174,13 +176,14 @@ impl Client {
             AccountMeta::new_readonly(whitelist, false),
             // Below are relay accounts.
             AccountMeta::new(vault, false),
-            AccountMeta::new(whitelist_vault, false),
-            AccountMeta::new_readonly(whitelist_vault_authority, false),
+            AccountMeta::new(whitelist_program_vault, false),
+            AccountMeta::new_readonly(whitelist_program_vault_authority, false),
             AccountMeta::new_readonly(spl_token::ID, false),
         ];
         accounts.append(&mut relay_accounts);
 
-        let signers = [self.payer(), &beneficiary];
+        let mut signers = vec![self.payer(), &beneficiary];
+        signers.append(&mut relay_signers);
 
         let tx = self
             .inner
@@ -359,22 +362,70 @@ impl Client {
         Ok(LockedStakeIntentResponse { tx: resp.tx })
     }
 
-    /*
     pub fn locked_stake_intent_withdrawal(
         &self,
         req: LockedStakeIntentWithdrawalRequest,
     ) -> Result<LockedStakeIntentWithdrawalResponse, ClientError> {
-                // todo
-                let LockedStakeIntentWithdrawalRequest {
-                        amount,
-                        mega,
-                        registry_pid,
-                        registrar,
-                        member,
-                }
-                Ok(LockedStakeIntentWithdrawalResponse { tx: resp.tx })
-        }
-        */
+        let LockedStakeIntentWithdrawalRequest {
+            amount,
+            mega,
+            registry_pid,
+            registrar,
+            member,
+            entity,
+            beneficiary,
+            stake_beneficiary,
+            vesting,
+            safe,
+        } = req;
+        let delegate = true;
+        let relay_data = {
+            let instr = RegistryInstruction::StakeIntentWithdrawal {
+                amount,
+                mega,
+                delegate,
+            };
+            let mut relay_data = vec![0; instr.size().unwrap() as usize];
+            RegistryInstruction::pack(instr, &mut relay_data).unwrap();
+            relay_data
+        };
+        let r = {
+            let r_client = RegistryClient::new(RegistryClientInner::new(
+                registry_pid,
+                Keypair::from_bytes(&self.payer().to_bytes()).expect("invalid payer"),
+                self.inner.url(),
+                Some(self.inner.options().clone()),
+            ));
+            r_client.registrar(&registrar)?
+        };
+        let whitelist_program_vault = r.vault;
+        let whitelist_program_vault_authority = Pubkey::create_program_address(
+            &TokenVault::signer_seeds(&registrar, &r.nonce),
+            &registry_pid,
+        )
+        .map_err(|_| anyhow!("unable to create vault authority"))?;
+        let relay_accounts = vec![
+            AccountMeta::new(member, false),
+            AccountMeta::new_readonly(stake_beneficiary.pubkey(), true),
+            AccountMeta::new(entity, false),
+            AccountMeta::new_readonly(registrar, false),
+            AccountMeta::new_readonly(solana_sdk::sysvar::clock::ID, false),
+        ];
+
+        let resp = self.whitelist_deposit(WhitelistDepositRequest {
+            beneficiary,
+            vesting,
+            safe,
+            whitelist_program: registry_pid,
+            whitelist_program_vault,
+            whitelist_program_vault_authority,
+            relay_data,
+            relay_accounts,
+            relay_signers: vec![&stake_beneficiary],
+        })?;
+
+        Ok(LockedStakeIntentWithdrawalResponse { tx: resp.tx })
+    }
 }
 
 // Account accessors.
@@ -531,11 +582,11 @@ pub struct WhitelistDepositRequest<'a> {
     pub vesting: Pubkey,
     pub safe: Pubkey,
     pub whitelist_program: Pubkey,
+    pub whitelist_program_vault: Pubkey,
+    pub whitelist_program_vault_authority: Pubkey,
     pub relay_accounts: Vec<AccountMeta>,
-    pub vault: Pubkey,
-    pub whitelist_vault: Pubkey,
-    pub whitelist_vault_authority: Pubkey,
     pub relay_data: Vec<u8>,
+    pub relay_signers: Vec<&'a Keypair>,
 }
 
 #[derive(Debug)]
@@ -604,6 +655,23 @@ pub struct LockedStakeIntentRequest<'a> {
 }
 
 pub struct LockedStakeIntentResponse {
+    pub tx: Signature,
+}
+
+pub struct LockedStakeIntentWithdrawalRequest<'a> {
+    pub amount: u64,
+    pub mega: bool,
+    pub registry_pid: Pubkey,
+    pub registrar: Pubkey,
+    pub member: Pubkey,
+    pub entity: Pubkey,
+    pub vesting: Pubkey,
+    pub safe: Pubkey,
+    pub beneficiary: &'a Keypair,
+    pub stake_beneficiary: &'a Keypair,
+}
+
+pub struct LockedStakeIntentWithdrawalResponse {
     pub tx: Signature,
 }
 
