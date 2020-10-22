@@ -1,9 +1,13 @@
+use crate::access_control;
 use crate::accounts::Registrar;
+use crate::error::RegistryError;
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_enum::IntoPrimitive;
 use serum_common::pack::*;
+use solana_client_gen::solana_sdk::account_info::AccountInfo;
 use solana_client_gen::solana_sdk::pubkey::Pubkey;
 use solana_client_gen::solana_sdk::sysvar::clock::Clock;
+use std::convert::Into;
 
 #[cfg(feature = "client")]
 lazy_static::lazy_static! {
@@ -39,10 +43,12 @@ pub struct Entity {
 
 // Public methods.
 impl Entity {
+    /// Returns the amount of stake contributing to the activation level.
     pub fn activation_amount(&self) -> u64 {
         self.amount_equivalent() + self.stake_intent_equivalent()
     }
 
+    /// Adds to the stake intent balance.
     pub fn add_stake_intent(
         &mut self,
         amount: u64,
@@ -58,6 +64,7 @@ impl Entity {
         self.transition_activation_if_needed(registrar, clock);
     }
 
+    /// Subtracts from the stake intent balance.
     pub fn sub_stake_intent(
         &mut self,
         amount: u64,
@@ -73,6 +80,7 @@ impl Entity {
         self.transition_activation_if_needed(registrar, clock);
     }
 
+    /// Adds to the stake balance.
     pub fn add_stake(&mut self, amount: u64, is_mega: bool, registrar: &Registrar, clock: &Clock) {
         if is_mega {
             self.balances.mega_stake_intent += amount;
@@ -82,6 +90,7 @@ impl Entity {
         self.transition_activation_if_needed(registrar, clock);
     }
 
+    /// Moves stake into the pending wtihdrawal state.
     pub fn transfer_pending_withdrawal(
         &mut self,
         amount: u64,
@@ -101,13 +110,13 @@ impl Entity {
 
     /// Transitions the EntityState finite state machine. This should be called
     /// immediately before processing any instruction relying on the most up
-    /// to date status of the EntityState. It can also be called (optionally)
-    /// after any mutation to the SRM equivalent deposit of this entity to
-    /// keep the state up to date.
+    /// to date status of the EntityState. It should also be called after any
+    /// mutation to the SRM equivalent deposit of this entity to keep the state
+    /// up to date.
     pub fn transition_activation_if_needed(&mut self, registrar: &Registrar, clock: &Clock) {
         match self.state {
             EntityState::Inactive => {
-                if self.activation_amount() >= registrar.reward_activation_threshold {
+                if self.meets_activation_requirements(registrar) {
                     self.state = EntityState::Active;
                     self.generation += 1;
                 }
@@ -115,21 +124,25 @@ impl Entity {
             EntityState::PendingDeactivation {
                 deactivation_start_slot,
             } => {
-                let window = registrar.deactivation_timelock();
-                if clock.slot > deactivation_start_slot + window {
+                if clock.slot > deactivation_start_slot + registrar.deactivation_timelock() {
                     self.state = EntityState::Inactive;
-                } else if self.activation_amount() >= registrar.reward_activation_threshold {
-                    self.state = EntityState::Active;
                 }
             }
             EntityState::Active => {
-                if self.activation_amount() < registrar.reward_activation_threshold {
+                if !self.meets_activation_requirements(registrar) {
                     self.state = EntityState::PendingDeactivation {
                         deactivation_start_slot: clock.slot,
                     }
                 }
             }
         }
+    }
+
+    /// Returns true if this Entity is capable of being "activated", i.e., can
+    /// enter the staking pool.
+    pub fn meets_activation_requirements(&self, registrar: &Registrar) -> bool {
+        self.activation_amount() >= registrar.reward_activation_threshold
+            && self.balances.mega_amount >= 1
     }
 }
 
@@ -211,4 +224,44 @@ impl Default for StakeKind {
     fn default() -> Self {
         StakeKind::Delegated
     }
+}
+
+// with_entity should be used for any instruction relying on the most up to
+// date `state` of an Entity.
+//
+//
+// As time, passes, it's possible an Entity's internal FSM *should* have
+// transitioned (i.e., from PendingDeactivation -> Inactive), but didn't
+// because no transaction was invoked.
+//
+// This method transitions the Entity's state, before performing the action
+// provided by the given closure.
+pub fn with_entity<F>(req: WithEntityRequest, f: &mut F) -> Result<(), RegistryError>
+where
+    F: FnMut(&mut Entity, &Registrar, &Clock) -> Result<(), RegistryError>,
+{
+    let WithEntityRequest {
+        entity,
+        registrar,
+        clock,
+        program_id,
+    } = req;
+    Entity::unpack_mut(
+        &mut entity.try_borrow_mut_data()?,
+        &mut |entity: &mut Entity| {
+            let clock = access_control::clock(&clock)?;
+            let registrar = access_control::registrar(&registrar, program_id)?;
+            entity.transition_activation_if_needed(&registrar, &clock);
+
+            f(entity, &registrar, &clock).map_err(Into::into)
+        },
+    )?;
+    Ok(())
+}
+
+pub struct WithEntityRequest<'a> {
+    pub entity: &'a AccountInfo<'a>,
+    pub registrar: &'a AccountInfo<'a>,
+    pub clock: &'a AccountInfo<'a>,
+    pub program_id: &'a Pubkey,
 }

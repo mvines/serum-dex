@@ -1,5 +1,6 @@
 use serum_common::pack::Pack;
 use serum_registry::access_control;
+use serum_registry::accounts::entity::{with_entity, WithEntityRequest};
 use serum_registry::accounts::{Entity, Member, Registrar};
 use serum_registry::error::{RegistryError, RegistryErrorCode};
 use solana_sdk::account_info::{next_account_info, AccountInfo};
@@ -36,20 +37,17 @@ pub fn handler<'a>(
     let clock_acc_info = next_account_info(acc_infos)?;
 
     // TODO: STAKING POOL ACCOUNTS HERE.
-
-    Entity::unpack_mut(
-        &mut entity_acc_info.try_borrow_mut_data()?,
-        &mut |entity: &mut Entity| {
+    with_entity(
+        WithEntityRequest {
+            entity: entity_acc_info,
+            registrar: registrar_acc_info,
+            clock: clock_acc_info,
+            program_id,
+        },
+        &mut |entity: &mut Entity, registrar: &Registrar, clock: &Clock| {
             Member::unpack_mut(
                 &mut member_acc_info.try_borrow_mut_data()?,
                 &mut |member: &mut Member| {
-                    // Activation status may have changed from
-                    // PendingDeactivation -> Inactive since the last transaction.
-                    // So update.
-                    let clock = access_control::clock(&clock_acc_info)?;
-                    let registrar = access_control::registrar(&registrar_acc_info, program_id)?;
-                    entity.transition_activation_if_needed(&registrar, &clock);
-
                     access_control(AccessControlRequest {
                         depositor_tok_owner_acc_info,
                         depositor_tok_acc_info,
@@ -66,7 +64,6 @@ pub fn handler<'a>(
                         member,
                         program_id,
                     })?;
-
                     state_transition(StateTransitionRequest {
                         entity,
                         member,
@@ -85,10 +82,9 @@ pub fn handler<'a>(
                     .map_err(Into::into)
                 },
             )
+            .map_err(Into::into)
         },
-    )?;
-
-    Ok(())
+    )
 }
 
 fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
@@ -212,8 +208,8 @@ struct AccessControlRequest<'a, 'b> {
 struct StateTransitionRequest<'a, 'b> {
     entity: &'b mut Entity,
     member: &'b mut Member,
-    registrar: Registrar,
-    clock: Clock,
+    registrar: &'b Registrar,
+    clock: &'b Clock,
     amount: u64,
     is_mega: bool,
     is_delegate: bool,
