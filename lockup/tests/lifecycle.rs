@@ -22,7 +22,6 @@ fn lifecycle() {
         safe_acc,
         srm_mint,
         safe_authority,
-        safe_srm_vault,
         safe_srm_vault_authority,
         depositor,
         depositor_balance_before,
