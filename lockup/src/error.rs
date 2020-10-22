@@ -68,6 +68,7 @@ pub enum LockupErrorCode {
     InvalidWhitelistEntry = 55,
     WhitelistInvalidProgramId = 56,
     WhitelistEntryAlreadyExists = 57,
+    WhitelistSafeMismatch = 58,
     Unknown = 1000,
 }
 

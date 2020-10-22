@@ -93,7 +93,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), LockupError> {
 
     // Account validation.
     let safe = access_control::safe(safe_acc_info, program_id)?;
-    let whitelist = access_control::whitelist(wl_acc_info.clone(), &safe, program_id)?;
+    let whitelist =
+        access_control::whitelist(wl_acc_info.clone(), safe_acc_info, &safe, program_id)?;
     let _ = access_control::vault(
         safe_vault_acc_info,
         safe_vault_auth_acc_info,

@@ -49,7 +49,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), LockupError> {
     let safe = access_control::governance(program_id, safe_acc_info, safe_authority_acc_info)?;
 
     // WhitelistAdd checks.
-    let _ = access_control::whitelist(whitelist_acc_info.clone(), &safe, program_id)?;
+    let _ =
+        access_control::whitelist(whitelist_acc_info.clone(), safe_acc_info, &safe, program_id)?;
     // Must be a valid derived address.
     let _ = wl_entry.derived_address()?;
 

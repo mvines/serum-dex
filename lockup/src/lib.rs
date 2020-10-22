@@ -34,8 +34,8 @@ pub mod instruction {
             nonce: u8,
         },
         /// CreateVesting initializes a vesting account, transferring tokens
-        /// from the controlling token account to one owned by the SrmSafe
-        /// program. Anyone with funds to deposit can invoke this instruction.
+        /// from the controlling token account to one owned by the program.
+        /// Anyone with funds to deposit can invoke this instruction.
         ///
         /// Accounts:
         ///
