@@ -103,13 +103,12 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
         amount,
     } = req;
 
-    // Beneficiary (or delegate) authorization.
+    // Authorization.
+    if !beneficiary_acc_info.is_signer {
+        return Err(RegistryErrorCode::Unauthorized)?;
+    }
     if is_delegate {
         if !delegate_owner_acc_info.is_signer {
-            return Err(RegistryErrorCode::Unauthorized)?;
-        }
-    } else {
-        if !beneficiary_acc_info.is_signer {
             return Err(RegistryErrorCode::Unauthorized)?;
         }
     }
@@ -121,6 +120,7 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
         member_acc_info,
         entity_acc_info,
         beneficiary_acc_info,
+        Some(delegate_owner_acc_info),
         is_delegate,
         program_id,
     )?;

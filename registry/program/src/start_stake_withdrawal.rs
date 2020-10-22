@@ -19,18 +19,27 @@ pub fn handler<'a>(
     let acc_infos = &mut accounts.iter();
 
     let pending_withdrawal_acc_info = next_account_info(acc_infos)?;
-    let member_authority_acc_info = next_account_info(acc_infos)?;
+    let beneficiary_acc_info = next_account_info(acc_infos)?;
     let member_acc_info = next_account_info(acc_infos)?;
     let entity_acc_info = next_account_info(acc_infos)?;
     let registrar_acc_info = next_account_info(acc_infos)?;
     let rent_acc_info = next_account_info(acc_infos)?;
     let clock_acc_info = next_account_info(acc_infos)?;
 
+    let delegate_owner_acc_info = {
+        if delegate {
+            Some(next_account_info(acc_infos)?)
+        } else {
+            None
+        }
+    };
+
     access_control(AccessControlRequest {
         pending_withdrawal_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
         registrar_acc_info,
         member_acc_info,
+        delegate_owner_acc_info,
         entity_acc_info,
         rent_acc_info,
         clock_acc_info,
@@ -78,9 +87,10 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     let AccessControlRequest {
         registrar_acc_info,
         pending_withdrawal_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
         member_acc_info,
         entity_acc_info,
+        delegate_owner_acc_info,
         rent_acc_info,
         clock_acc_info,
         program_id,
@@ -88,7 +98,7 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     } = req;
 
     // Beneficiary/delegate authorization.
-    if !member_authority_acc_info.is_signer {
+    if !beneficiary_acc_info.is_signer {
         return Err(RegistryErrorCode::Unauthorized)?;
     }
 
@@ -100,7 +110,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     let _ = access_control::member(
         member_acc_info,
         entity_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
+        delegate_owner_acc_info,
         delegate,
         program_id,
     )?;
@@ -167,8 +178,9 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
 struct AccessControlRequest<'a> {
     registrar_acc_info: &'a AccountInfo<'a>,
     pending_withdrawal_acc_info: &'a AccountInfo<'a>,
-    member_authority_acc_info: &'a AccountInfo<'a>,
+    beneficiary_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
+    delegate_owner_acc_info: Option<&'a AccountInfo<'a>>,
     entity_acc_info: &'a AccountInfo<'a>,
     rent_acc_info: &'a AccountInfo<'a>,
     clock_acc_info: &'a AccountInfo<'a>,

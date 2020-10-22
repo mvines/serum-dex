@@ -92,28 +92,22 @@ fn lifecycle() {
         )
     };
 
-    let nft_tok_acc = rpc::create_token_account(
-        client.rpc(),
-        &nft_mint,
-        &expected_beneficiary.pubkey(),
-        client.payer(),
-    )
-    .unwrap();
-
     // Claim the vesting account.
-    {
-        let _ = client
+    let nft_tok_acc = {
+        let claim_resp = client
             .claim(ClaimRequest {
                 beneficiary: &expected_beneficiary,
                 safe: safe_acc,
                 vesting: vesting,
-                locked_mint: nft_mint,
-                locked_token_account: nft_tok_acc.pubkey(),
             })
             .unwrap();
-        let nft = rpc::account_token_unpacked::<TokenAccount>(client.rpc(), &nft_tok_acc.pubkey());
+        let nft = rpc::account_token_unpacked::<TokenAccount>(
+            client.rpc(),
+            &claim_resp.locked_token_account,
+        );
         assert_eq!(nft.amount, expected_deposit);
-    }
+        claim_resp.locked_token_account
+    };
 
     // Setup the staking program.
     let staking_program_id: Pubkey = std::env::var("TEST_WHITELIST_PROGRAM_ID")
@@ -167,7 +161,6 @@ fn lifecycle() {
             vesting,
             safe: safe_acc,
             whitelist_program: staking_program_id,
-            vault: safe_srm_vault,
             whitelist_vault: stake_init.vault,
             whitelist_vault_authority: stake_init.vault_authority,
             delegate_amount: stake_amount,
@@ -276,16 +269,13 @@ fn lifecycle() {
                 beneficiary: &expected_beneficiary,
                 vesting,
                 token_account: bene_tok_acc.pubkey(),
-                vault: safe_srm_vault,
                 safe: safe_acc,
-                locked_token_account: nft_tok_acc.pubkey(),
-                locked_mint: nft_mint,
                 amount: redeem_amount,
             })
             .unwrap();
 
         // The nft should be burnt for the redeem_amount.
-        let nft = rpc::account_token_unpacked::<TokenAccount>(client.rpc(), &nft_tok_acc.pubkey());
+        let nft = rpc::account_token_unpacked::<TokenAccount>(client.rpc(), &nft_tok_acc);
         assert_eq!(nft.amount, new_nft_amount);
 
         // The supply should be burnt.

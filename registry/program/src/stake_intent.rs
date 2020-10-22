@@ -14,7 +14,7 @@ pub fn handler<'a>(
     is_mega: bool,
     is_delegate: bool,
 ) -> Result<(), RegistryError> {
-    info!("handler: stake");
+    info!("handler: stake_intent");
 
     let acc_infos = &mut accounts.iter();
 
@@ -30,7 +30,7 @@ pub fn handler<'a>(
     // Program specfic.
 
     let member_acc_info = next_account_info(acc_infos)?;
-    let member_authority_acc_info = next_account_info(acc_infos)?;
+    let beneficiary_acc_info = next_account_info(acc_infos)?;
     let entity_acc_info = next_account_info(acc_infos)?;
     let registrar_acc_info = next_account_info(acc_infos)?;
     let clock_acc_info = next_account_info(acc_infos)?;
@@ -40,7 +40,7 @@ pub fn handler<'a>(
         tok_authority_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
         entity_acc_info,
         vault_acc_info,
         token_program_acc_info,
@@ -69,7 +69,6 @@ pub fn handler<'a>(
                         tok_authority_acc_info,
                         depositor_tok_acc_info,
                         member_acc_info,
-                        member_authority_acc_info,
                         entity_acc_info,
                         token_program_acc_info,
                         is_delegate,
@@ -85,14 +84,14 @@ pub fn handler<'a>(
 }
 
 fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
-    info!("access-control: stake-intent");
+    info!("access-control: stake_intent");
 
     let AccessControlRequest {
         delegate_owner_acc_info,
         tok_authority_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
         entity_acc_info,
         vault_acc_info,
         token_program_acc_info,
@@ -102,8 +101,10 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
         is_mega,
     } = req;
 
-    // Beneficiary (or delegate) authorization.
-    //
+    // Beneficiary authorization.
+    if !beneficiary_acc_info.is_signer {
+        return Err(RegistryErrorCode::Unauthorized)?;
+    }
     // Delegate implies the signer is the program-derived-address of the
     // lockup program, the vault of which we have delegate access to.
     if is_delegate {
@@ -124,7 +125,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     let member = access_control::member(
         member_acc_info,
         entity_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
+        Some(delegate_owner_acc_info),
         is_delegate,
         program_id,
     )?;
@@ -155,7 +157,7 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
 }
 
 fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
-    info!("state-transition: stake-intent");
+    info!("state-transition: stake_intent");
 
     let StateTransitionRequest {
         entity,
@@ -168,7 +170,6 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
         depositor_tok_acc_info,
         vault_acc_info,
         member_acc_info,
-        member_authority_acc_info,
         entity_acc_info,
         token_program_acc_info,
         is_delegate,
@@ -221,7 +222,7 @@ struct AccessControlRequest<'a> {
     tok_authority_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
-    member_authority_acc_info: &'a AccountInfo<'a>,
+    beneficiary_acc_info: &'a AccountInfo<'a>,
     entity_acc_info: &'a AccountInfo<'a>,
     token_program_acc_info: &'a AccountInfo<'a>,
     vault_acc_info: &'a AccountInfo<'a>,
@@ -242,7 +243,6 @@ struct StateTransitionRequest<'a, 'b> {
     tok_authority_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
-    member_authority_acc_info: &'a AccountInfo<'a>,
     entity_acc_info: &'a AccountInfo<'a>,
     token_program_acc_info: &'a AccountInfo<'a>,
 }

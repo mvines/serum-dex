@@ -20,6 +20,7 @@ pub fn handler<'a>(
 
     // Lockup whitelist relay itnerface.
 
+    let delegate_owner_acc_info = next_account_info(acc_infos)?;
     let depositor_tok_acc_info = next_account_info(acc_infos)?;
     // TODO: THE POOL DESTINATION VAULT HERE.
     let _pool_vault_acc_info = next_account_info(acc_infos)?;
@@ -29,7 +30,7 @@ pub fn handler<'a>(
     // Program specific.
 
     let member_acc_info = next_account_info(acc_infos)?;
-    let member_authority_acc_info = next_account_info(acc_infos)?;
+    let beneficiary_acc_info = next_account_info(acc_infos)?;
     let entity_acc_info = next_account_info(acc_infos)?;
     let registrar_acc_info = next_account_info(acc_infos)?;
     let clock_acc_info = next_account_info(acc_infos)?;
@@ -54,7 +55,8 @@ pub fn handler<'a>(
                         depositor_tok_acc_info,
                         member_acc_info,
                         registrar_acc_info,
-                        member_authority_acc_info,
+                        delegate_owner_acc_info,
+                        beneficiary_acc_info,
                         entity_acc_info,
                         token_program_acc_info,
                         amount,
@@ -76,7 +78,7 @@ pub fn handler<'a>(
                         depositor_tok_owner_acc_info,
                         depositor_tok_acc_info,
                         member_acc_info,
-                        member_authority_acc_info,
+                        beneficiary_acc_info,
                         entity_acc_info,
                         token_program_acc_info,
                     })
@@ -96,7 +98,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
         depositor_tok_owner_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
-        member_authority_acc_info,
+        delegate_owner_acc_info,
+        beneficiary_acc_info,
         entity_acc_info,
         token_program_acc_info,
         registrar_acc_info,
@@ -109,7 +112,7 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     } = req;
 
     // Beneficiary (or delegate) authorization.
-    if !member_authority_acc_info.is_signer {
+    if !beneficiary_acc_info.is_signer {
         return Err(RegistryErrorCode::Unauthorized)?;
     }
 
@@ -119,7 +122,8 @@ fn access_control(req: AccessControlRequest) -> Result<(), RegistryError> {
     let member = access_control::member(
         member_acc_info,
         entity_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
+        Some(delegate_owner_acc_info),
         is_delegate,
         program_id,
     )?;
@@ -158,7 +162,7 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
         depositor_tok_owner_acc_info,
         depositor_tok_acc_info,
         member_acc_info,
-        member_authority_acc_info,
+        beneficiary_acc_info,
         entity_acc_info,
         token_program_acc_info,
         registrar,
@@ -185,7 +189,8 @@ struct AccessControlRequest<'a, 'b> {
     depositor_tok_owner_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
-    member_authority_acc_info: &'a AccountInfo<'a>,
+    delegate_owner_acc_info: &'a AccountInfo<'a>,
+    beneficiary_acc_info: &'a AccountInfo<'a>,
     entity_acc_info: &'a AccountInfo<'a>,
     token_program_acc_info: &'a AccountInfo<'a>,
     registrar_acc_info: &'a AccountInfo<'a>,
@@ -208,7 +213,7 @@ struct StateTransitionRequest<'a, 'b> {
     depositor_tok_owner_acc_info: &'a AccountInfo<'a>,
     depositor_tok_acc_info: &'a AccountInfo<'a>,
     member_acc_info: &'a AccountInfo<'a>,
-    member_authority_acc_info: &'a AccountInfo<'a>,
+    beneficiary_acc_info: &'a AccountInfo<'a>,
     entity_acc_info: &'a AccountInfo<'a>,
     token_program_acc_info: &'a AccountInfo<'a>,
 }

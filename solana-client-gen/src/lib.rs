@@ -180,7 +180,7 @@ pub mod prelude {
     pub use thiserror::Error;
 
     #[cfg(feature = "client")]
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct RequestOptions {
         pub commitment: CommitmentConfig,
         pub tx: RpcSendTransactionConfig,

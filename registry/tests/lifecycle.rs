@@ -1,6 +1,11 @@
 use rand::rngs::OsRng;
 use serum_common::client::rpc;
 use serum_common_tests::Genesis;
+use serum_lockup::accounts::WhitelistEntry;
+use serum_lockup_client::{
+    ClaimRequest, Client as LockupClient, CreateVestingRequest,
+    InitializeRequest as LockupInitializeRequest, LockedStakeIntentRequest, WhitelistAddRequest,
+};
 use serum_registry::accounts::StakeKind;
 use serum_registry_client::*;
 use solana_client_gen::prelude::*;
@@ -8,11 +13,6 @@ use solana_client_gen::solana_sdk::pubkey::Pubkey;
 use solana_client_gen::solana_sdk::signature::{Keypair, Signer};
 use spl_token::state::Account as TokenAccount;
 
-// NOTE: Deterministic derived addresses are used as a UX convenience so
-//       make sure tests are run against a new instance of the program.
-
-// lifecycle tests all instructions on the program in one go.
-// TODO: break this up into multiple tests.
 #[test]
 fn lifecycle() {
     // First test initiailze.
@@ -35,7 +35,9 @@ fn lifecycle() {
     let deactivation_timelock_premium = 1000;
     let reward_activation_threshold = 10_000_000;
     let registrar_authority = Keypair::generate(&mut OsRng);
-    let InitializeResponse { registrar, .. } = client
+    let InitializeResponse {
+        registrar, nonce, ..
+    } = client
         .initialize(InitializeRequest {
             registrar_authority: registrar_authority.pubkey(),
             withdrawal_timelock,
@@ -45,16 +47,6 @@ fn lifecycle() {
             reward_activation_threshold,
         })
         .unwrap();
-
-    // Initialize the lockup program and whitelist registrar.
-    {
-        let lockup_program_id: Pubkey = std::env::var("TEST_LOCKUP_PROGRAM_ID")
-            .unwrap()
-            .parse()
-            .unwrap();
-        // TODO
-    }
-
     // Verify initialization.
     {
         let registrar = client.registrar(&registrar).unwrap();
@@ -62,6 +54,61 @@ fn lifecycle() {
         assert_eq!(registrar.authority, registrar_authority.pubkey());
         assert_eq!(registrar.capabilities_fees_bps, [0; 32]);
     }
+
+    // Initialize the lockup program, vesting account, and whitelist the
+    // registrar so that we can stake locked srm.
+    let (l_client, safe, vesting, vesting_beneficiary, safe_vault_authority) = {
+        let l_pid: Pubkey = std::env::var("TEST_LOCKUP_PROGRAM_ID")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let l_client = serum_common_tests::client_at::<LockupClient>(l_pid);
+        // Initialize.
+        let init_resp = l_client
+            .initialize(LockupInitializeRequest {
+                mint: srm_mint.pubkey(),
+                authority: l_client.payer().pubkey(),
+            })
+            .unwrap();
+        // Whitelist the registrar.
+        l_client
+            .whitelist_add(WhitelistAddRequest {
+                authority: l_client.payer(),
+                safe: init_resp.safe,
+                entry: WhitelistEntry::new(*client.program(), registrar, nonce),
+            })
+            .unwrap();
+        // Create vesting.
+        let current_slot = client.rpc().get_slot().unwrap();
+        let deposit_amount = 1_000;
+        let c_vest_resp = l_client
+            .create_vesting(CreateVestingRequest {
+                depositor: god.pubkey(),
+                depositor_owner: &god_owner,
+                safe: init_resp.safe,
+                beneficiary: client.payer().pubkey(),
+                end_slot: current_slot + 100,
+                period_count: 10,
+                deposit_amount,
+            })
+            .unwrap();
+        // Claim vesting.
+        l_client
+            .claim(ClaimRequest {
+                beneficiary: client.payer(),
+                safe: init_resp.safe,
+                vesting: c_vest_resp.vesting,
+            })
+            .unwrap();
+
+        (
+            l_client,
+            init_resp.safe,
+            c_vest_resp.vesting,
+            client.payer(),
+            init_resp.vault_authority,
+        )
+    };
 
     // Register capabilities.
     {
@@ -134,7 +181,7 @@ fn lifecycle() {
                 entity,
                 registrar,
                 beneficiary: beneficiary.pubkey(),
-                delegate: Pubkey::new_from_array([0; 32]),
+                delegate: safe_vault_authority,
                 watchtower: Pubkey::new_from_array([0; 32]),
                 watchtower_dest: Pubkey::new_from_array([0; 32]),
             })
@@ -144,16 +191,15 @@ fn lifecycle() {
         assert_eq!(member_account.initialized, true);
         assert_eq!(member_account.entity, entity);
         assert_eq!(member_account.beneficiary, beneficiary.pubkey());
-        assert_eq!(
-            member_account.books.delegate().owner,
-            Pubkey::new_from_array([0; 32])
-        );
+        assert_eq!(member_account.books.delegate().owner, safe_vault_authority,);
         assert_eq!(member_account.books.main().balances.amount, 0);
         assert_eq!(member_account.books.main().balances.mega_amount, 0);
         member
     };
 
     // Stake intent.
+    let god_acc = rpc::get_token_account::<TokenAccount>(client.rpc(), &god.pubkey()).unwrap();
+    let god_balance_before = god_acc.amount;
     let stake_intent_amount = 33;
     {
         client
@@ -195,10 +241,23 @@ fn lifecycle() {
 
     // Stake intent from lockup.
     {
-        // todo
+        l_client
+            .locked_stake_intent(LockedStakeIntentRequest {
+                amount: stake_intent_amount,
+                mega: false,
+                registry_pid: *client.program(),
+                registrar,
+                member,
+                entity,
+                beneficiary: vesting_beneficiary,
+                stake_beneficiary: &beneficiary,
+                vesting,
+                safe,
+            })
+            .unwrap();
     }
 
-    // Stake intent withdrawal from delegate.
+    // Stake intent withdrawal back to lockup.
     {
         // todo
     }

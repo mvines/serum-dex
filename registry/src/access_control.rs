@@ -65,7 +65,8 @@ pub fn entity(
 pub fn member(
     acc_info: &AccountInfo,
     entity: &AccountInfo,
-    authority_acc_info: &AccountInfo,
+    beneficiary_acc_info: &AccountInfo,
+    delegate_owner_acc_info: Option<&AccountInfo>,
     is_delegate: bool,
     program_id: &Pubkey,
 ) -> Result<Member, RegistryError> {
@@ -79,10 +80,11 @@ pub fn member(
     if m.entity != *entity.key {
         return Err(RegistryErrorCode::MemberEntityMismatch)?;
     }
-    if is_delegate && *authority_acc_info.key != m.books.delegate().owner {
-        return Err(RegistryErrorCode::MemberDelegateMismatch)?;
-    } else if !is_delegate && *authority_acc_info.key != m.beneficiary {
+    if m.beneficiary != *beneficiary_acc_info.key {
         return Err(RegistryErrorCode::MemberBeneficiaryMismatch)?;
+    }
+    if is_delegate && *delegate_owner_acc_info.unwrap().key != m.books.delegate().owner {
+        return Err(RegistryErrorCode::MemberDelegateMismatch)?;
     }
     Ok(m)
 }

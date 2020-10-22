@@ -102,7 +102,7 @@ impl<'a> Whitelist<'a> {
         for k in (0..Whitelist::SIZE).step_by(Whitelist::ITEM_SIZE) {
             let curr_idx = k / Whitelist::ITEM_SIZE;
             let entry = self.get_at(curr_idx)?;
-            if &entry.derived_address()? == derived {
+            if entry != WhitelistEntry::zero() && &entry.derived_address()? == derived {
                 return Ok(Some(entry));
             }
         }

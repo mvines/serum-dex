@@ -160,12 +160,16 @@ pub mod instruction {
         /// Accounts:
         ///
         /// 0. `[writable]  PendingWithdrawal account to initialize.
-        /// 1  `[signed]`   Benficiary/delegate of the Stake account.
+        /// 1  `[signed]`   Benficiary of the Stake account.
         /// 2. `[writable]` The Member account to withdraw from.
         /// 3. `[writable]` Entity the Stake is associated with.
         /// 4. `[writable]` Registrar.
         /// 5. `[]`         Rent acc info.
         /// 6. `[signed]`   Owner of the staking pool token account to redeem.
+        ///
+        /// Delegate only.
+        ///
+        /// 7. `[signed]?`  Delegate owner of the Member account.
         // TODO: the staking pool token should be burned here so that it can't
         //       be used during the withdrawal timelock period.
         /// 7. `[writable]` Staking pool token.
