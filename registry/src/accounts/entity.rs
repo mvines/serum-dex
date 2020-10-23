@@ -122,16 +122,17 @@ impl Entity {
                 }
             }
             EntityState::PendingDeactivation {
-                deactivation_start_slot,
+                deactivation_start_ts,
             } => {
-                if clock.slot > deactivation_start_slot + registrar.deactivation_timelock() {
+                if clock.unix_timestamp > deactivation_start_ts + registrar.deactivation_timelock()
+                {
                     self.state = EntityState::Inactive;
                 }
             }
             EntityState::Active => {
                 if !self.meets_activation_requirements(registrar) {
                     self.state = EntityState::PendingDeactivation {
-                        deactivation_start_slot: clock.slot,
+                        deactivation_start_ts: clock.unix_timestamp,
                     }
                 }
             }
@@ -192,14 +193,14 @@ pub enum EntityState {
     /// The entity is ineligble for rewards. Redeeming existing staking pool
     /// tokens will return less than or equal to the original staking deposit.
     Inactive,
-    /// The Entity is on a deactivation countdown, lasting until the slot number
-    /// `deactivation_start_slot + Registrar.deactivation_timelock_premium`,
+    /// The Entity is on a deactivation countdown, lasting until the timestamp
+    /// `deactivation_start_ts + Registrar.deactivation_timelock_premium`,
     /// at which point the EntityState transitions from PendingDeactivation
     /// to Inactive.
     ///
     /// During this time, either members  must stake more SRM or MSRM or they
     /// should withdraw their stake to retrieve their rewards.
-    PendingDeactivation { deactivation_start_slot: u64 },
+    PendingDeactivation { deactivation_start_ts: i64 },
     /// The entity is eligble for rewards. Member accounts can stake with this
     /// entity and receive rewards.
     Active,

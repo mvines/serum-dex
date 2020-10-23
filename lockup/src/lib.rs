@@ -58,9 +58,9 @@ pub mod instruction {
             /// The beneficiary of the vesting account, i.e.,
             /// the user who will own the SRM upon vesting.
             beneficiary: Pubkey,
-            /// The Solana slot number at which point the entire deposit will
+            /// The unix timestamp at which point the entire deposit will
             /// be vested.
-            end_slot: u64,
+            end_ts: i64,
             /// The number of vesting periods for the account. For example,
             /// a vesting yearly over seven years would make this 7.
             period_count: u64,

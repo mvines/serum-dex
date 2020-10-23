@@ -25,13 +25,13 @@ pub struct Registrar {
     /// Address of the capabilities list account, in the event we want to
     /// enforce access control on capabilities addresses.
     pub capabilities_list: Pubkey,
-    /// Number of slots that must pass for a withdrawal to complete.
-    pub withdrawal_timelock: u64,
-    /// Number of slots *in addition* to the withdrawal timelock it takes for
+    /// Number of seconds that must pass for a withdrawal to complete.
+    pub withdrawal_timelock: i64,
+    /// Number of seconds *in addition* to the withdrawal timelock it takes for
     /// an Entity account to be "deactivated"--i.e., cant receive rewards--from
     /// the moment it's SRM equivalent staked amount drops below the required
     /// threshold.
-    pub deactivation_timelock_premium: u64,
+    pub deactivation_timelock_premium: i64,
     /// Vault holding stake-intent tokens.
     pub vault: Pubkey,
     /// Vault holding stake-intent mega tokens.
@@ -52,7 +52,7 @@ impl Registrar {
         None
     }
 
-    pub fn deactivation_timelock(&self) -> u64 {
+    pub fn deactivation_timelock(&self) -> i64 {
         self.deactivation_timelock_premium + self.withdrawal_timelock
     }
 

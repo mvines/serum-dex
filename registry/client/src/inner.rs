@@ -13,8 +13,8 @@ pub fn initialize(
     mint: &Pubkey,
     mega_mint: &Pubkey,
     registrar_authority: &Pubkey,
-    withdrawal_timelock: u64,
-    deactivation_timelock_premium: u64,
+    withdrawal_timelock: i64,
+    deactivation_timelock_premium: i64,
     reward_activation_threshold: u64,
 ) -> Result<(Signature, Pubkey, u8), InnerClientError> {
     let registrar_kp = Keypair::generate(&mut OsRng);

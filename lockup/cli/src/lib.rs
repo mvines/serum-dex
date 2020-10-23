@@ -59,7 +59,7 @@ pub enum SubCommand {
         beneficiary: Pubkey,
         /// Slot at which point the entire account is vested.
         #[clap(short, long)]
-        end_slot: u64,
+        end_ts: u64,
         /// Number of vesting periods for this account.
         #[clap(short, long)]
         period_count: u64,
@@ -179,7 +179,7 @@ pub fn run(opts: Opts) -> Result<()> {
             depositor,
             safe,
             beneficiary,
-            end_slot,
+            end_ts,
             period_count,
             deposit_amount,
         } => {
@@ -189,7 +189,7 @@ pub fn run(opts: Opts) -> Result<()> {
                 depositor_owner: &ctx.wallet()?,
                 safe,
                 beneficiary,
-                end_slot,
+                end_ts,
                 period_count,
                 deposit_amount,
             })?;
@@ -258,8 +258,8 @@ fn account_cmd(ctx: &Context, pid: Pubkey, cmd: AccountsCommand) -> Result<()> {
             let vault = client.vesting(&address)?;
             println!("{:#?}", vault);
 
-            let current_slot = client.rpc().get_slot()?;
-            let amount = vault.available_for_withdrawal(current_slot);
+            let current_ts = client.rpc().get_block_time(client.rpc().get_ts()?)?;
+            let amount = vault.available_for_withdrawal(current_ts);
             println!("Redeemable balance: {:?}", amount);
             println!("Whitelistable balance: {:?}", amount);
 

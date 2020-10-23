@@ -80,7 +80,10 @@ fn lifecycle() {
             })
             .unwrap();
         // Create vesting.
-        let current_slot = client.rpc().get_slot().unwrap();
+        let current_ts = client
+            .rpc()
+            .get_block_time(client.rpc().get_slot().unwrap())
+            .unwrap();
         let deposit_amount = 1_000;
         let c_vest_resp = l_client
             .create_vesting(CreateVestingRequest {
@@ -88,7 +91,7 @@ fn lifecycle() {
                 depositor_owner: &god_owner,
                 safe: init_resp.safe,
                 beneficiary: client.payer().pubkey(),
-                end_slot: current_slot + 100,
+                end_ts: current_ts + 60,
                 period_count: 10,
                 deposit_amount,
             })

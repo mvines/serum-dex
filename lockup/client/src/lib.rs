@@ -47,7 +47,7 @@ impl Client {
             &vault,
             &self.vault_authority(req.safe)?,
             &req.beneficiary,
-            req.end_slot,
+            req.end_ts,
             req.period_count,
             req.deposit_amount,
             mint_decimals,
@@ -525,7 +525,7 @@ pub struct CreateVestingRequest<'a> {
     pub depositor_owner: &'a Keypair,
     pub safe: Pubkey,
     pub beneficiary: Pubkey,
-    pub end_slot: u64,
+    pub end_ts: i64,
     pub period_count: u64,
     pub deposit_amount: u64,
 }

@@ -160,8 +160,8 @@ fn state_transition(req: StateTransitionRequest) -> Result<(), RegistryError> {
     // Print the pending withdrawal receipt.
     pending_withdrawal.initialized = true;
     pending_withdrawal.member = *member_acc_info.key;
-    pending_withdrawal.start_slot = clock.slot;
-    pending_withdrawal.end_slot = clock.slot + registrar.deactivation_timelock();
+    pending_withdrawal.start_ts = clock.unix_timestamp;
+    pending_withdrawal.end_ts = clock.unix_timestamp + registrar.deactivation_timelock();
     pending_withdrawal.amount = amount;
     pending_withdrawal.delegate = delegate;
     pending_withdrawal.mega = mega;

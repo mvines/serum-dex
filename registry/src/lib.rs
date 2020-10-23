@@ -29,13 +29,13 @@ pub mod instruction {
             authority: Pubkey,
             /// Nonce for deriving the vault authority address.
             nonce: u8,
-            /// Number of slots that must pass for a withdrawal to complete.
-            withdrawal_timelock: u64,
-            /// Number of slots *in addition* to the `withdrawal_timelock` after
+            /// Number of seconds that must pass for a withdrawal to complete.
+            withdrawal_timelock: i64,
+            /// Number of seconds *in addition* to the `withdrawal_timelock` after
             /// which an Entity becomes "deactivated".  The deactivation
             /// countdown starts immediately once a node's stake amount is less
-            /// than 10_000_000 SRM equivalent.
-            deactivation_timelock_premium: u64,
+            /// than the reward_activation_threshold.
+            deactivation_timelock_premium: i64,
             /// The amount of tokens that must be staked for an entity to be
             /// eligible for rewards.
             reward_activation_threshold: u64,

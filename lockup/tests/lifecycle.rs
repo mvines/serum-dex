@@ -31,10 +31,13 @@ fn lifecycle() {
     // CreateVesting.
     let (vesting, vesting_acc, expected_beneficiary, expected_deposit, nft_mint) = {
         let vesting_acc_beneficiary = Keypair::generate(&mut OsRng);
-        let current_slot = client.rpc().get_slot().unwrap();
-        let end_slot = {
-            let end_slot_offset = 100;
-            end_slot_offset + current_slot
+        let current_ts = client
+            .rpc()
+            .get_block_time(client.rpc().get_slot().unwrap())
+            .unwrap();
+        let end_ts = {
+            let end_ts_offset = 100;
+            end_ts_offset + current_ts
         };
         let period_count = 10;
         let deposit_amount = 100;
@@ -51,7 +54,7 @@ fn lifecycle() {
                 depositor_owner: client.payer(),
                 safe: safe_acc,
                 beneficiary: vesting_acc_beneficiary.pubkey(),
-                end_slot,
+                end_ts,
                 period_count,
                 deposit_amount,
             })
@@ -64,7 +67,7 @@ fn lifecycle() {
         assert_eq!(vesting_acc.safe, safe_acc);
         assert_eq!(vesting_acc.beneficiary, vesting_acc_beneficiary.pubkey());
         assert_eq!(vesting_acc.initialized, true);
-        assert_eq!(vesting_acc.end_slot, end_slot);
+        assert_eq!(vesting_acc.end_ts, end_ts);
         assert_eq!(vesting_acc.period_count, period_count);
         assert_eq!(vesting_acc.locked_nft_mint, mint);
         assert_eq!(vesting_acc.whitelist_owned, 0);
@@ -239,8 +242,8 @@ fn lifecycle() {
 
     // Wait for a vesting period to lapse.
     {
-        let wait_slot = vesting_acc.start_slot + 10;
-        blockchain::pass_time(client.rpc(), wait_slot);
+        let wait_ts = vesting_acc.start_ts + 10;
+        blockchain::pass_time(client.rpc(), wait_ts);
     }
 
     // Redeem 10 SRM.
@@ -250,7 +253,7 @@ fn lifecycle() {
     // * original-deposit-amount 100
     // * balance: 97
     // * stake-amount/whitelist_owned: 3
-    // * vested-amount: ~10 (depends on variance in slot time as tests run, this
+    // * vested-amount: ~10 (depends on variance in ts time as tests run, this
     //                       is a lower bound.)
     {
         let bene_tok_acc = rpc::create_token_account(

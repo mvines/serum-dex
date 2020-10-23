@@ -279,8 +279,8 @@ impl ClientGen for Client {
 
 pub struct InitializeRequest {
     pub registrar_authority: Pubkey,
-    pub withdrawal_timelock: u64,
-    pub deactivation_timelock_premium: u64,
+    pub withdrawal_timelock: i64,
+    pub deactivation_timelock_premium: i64,
     pub mint: Pubkey,
     pub mega_mint: Pubkey,
     pub reward_activation_threshold: u64,

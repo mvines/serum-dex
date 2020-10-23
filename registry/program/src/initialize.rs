@@ -11,8 +11,8 @@ pub fn handler<'a>(
     accounts: &'a [AccountInfo<'a>],
     authority: Pubkey,
     nonce: u8,
-    withdrawal_timelock: u64,
-    deactivation_timelock_premium: u64,
+    withdrawal_timelock: i64,
+    deactivation_timelock_premium: i64,
     reward_activation_threshold: u64,
 ) -> Result<(), RegistryError> {
     info!("handler: initialize");
@@ -146,8 +146,8 @@ struct AccessControlRequest<'a> {
 struct StateTransitionRequest<'a, 'b> {
     registrar: &'b mut Registrar,
     authority: Pubkey,
-    withdrawal_timelock: u64,
-    deactivation_timelock_premium: u64,
+    withdrawal_timelock: i64,
+    deactivation_timelock_premium: i64,
     nonce: u8,
     vault_acc_info: &'a AccountInfo<'a>,
     mega_vault_acc_info: &'a AccountInfo<'a>,
