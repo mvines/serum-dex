@@ -1,4 +1,3 @@
-use serum_common::client::rpc;
 use serum_registry::accounts;
 use serum_registry::accounts::Watchtower;
 use serum_registry::client::{Client as InnerClient, ClientError as InnerClientError};

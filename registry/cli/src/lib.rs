@@ -103,10 +103,10 @@ pub enum GovCommand {
         authority_file: Option<String>,
         /// The amount of slots one must wait for a staking withdrawal.
         #[clap(short, long, default_value = "10000")]
-        withdrawal_timelock: u64,
+        withdrawal_timelock: i64,
         /// Slots in addition to the withdrawal_timelock for deactivation.
         #[clap(short, long, default_value = "10000")]
-        deactivation_timelock_premium: u64,
+        deactivation_timelock_premium: i64,
         /// SRM equivalent amount required for node activation.
         #[clap(short, long, default_value = "10_000_000")]
         reward_activation_threshold: u64,
@@ -305,8 +305,8 @@ mod gov {
         registry_pid: Pubkey,
         authority: Option<Pubkey>,
         authority_file: Option<String>,
-        withdrawal_timelock: u64,
-        deactivation_timelock_premium: u64,
+        withdrawal_timelock: i64,
+        deactivation_timelock_premium: i64,
         reward_activation_threshold: u64,
     ) -> Result<()> {
         let logger = serum_node_logging::get_logger("node/registry");
@@ -323,9 +323,9 @@ mod gov {
             }
         };
         let InitializeResponse {
-            tx,
+            tx: _,
             registrar,
-            nonce,
+            nonce: _,
         } = client.initialize(InitializeRequest {
             registrar_authority,
             withdrawal_timelock,
